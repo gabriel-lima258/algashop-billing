@@ -1,5 +1,6 @@
 package com.algaworks.algashop.billing.domain.model.invoice;
 
+import com.algaworks.algashop.billing.domain.model.AbstractAuditableAggregateRoot;
 import com.algaworks.algashop.billing.domain.model.BusinessException;
 import com.algaworks.algashop.billing.domain.model.util.IdGenerator;
 import jakarta.persistence.*;
@@ -18,9 +19,9 @@ import java.util.*;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PROTECTED)
-@EqualsAndHashCode(onlyExplicitlyIncluded = true)
+@EqualsAndHashCode(onlyExplicitlyIncluded = true, callSuper = false)
 @Entity
-public class Invoice {
+public class Invoice extends AbstractAuditableAggregateRoot {
 
     @EqualsAndHashCode.Include
     @Id
@@ -72,7 +73,7 @@ public class Invoice {
 
         BigDecimal totalAmount = items.stream().map(LineItem::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        return new Invoice(
+        Invoice invoice = new Invoice(
                 IdGenerator.generateTimeBasedUUID(),
                 orderId,
                 customerId,
@@ -87,6 +88,11 @@ public class Invoice {
                 payer,
                 null
         );
+        // evento
+        invoice.registerEvent(new InvoiceIssuedEvent(invoice.getId(), invoice.getCustomerId(),
+                invoice.getOrderId(), invoice.getIssuedAt()));
+
+        return invoice;
     }
 
     // reescrevendo o items para que não possa ser modificado por açoões externas
@@ -113,6 +119,9 @@ public class Invoice {
         }
         setPaidAt(OffsetDateTime.now());
         setStatus(InvoiceStatus.PAID);
+        // evento
+        registerEvent(new InvoicePaidEvent(this.getId(), this.getCustomerId(),
+                this.getOrderId(), this.getPaidAt()));
     }
 
     public void cancel(String cancelReason) {
@@ -123,6 +132,9 @@ public class Invoice {
         setCancelReason(cancelReason);
         setCanceledAt(OffsetDateTime.now());
         setStatus(InvoiceStatus.CANCELED);
+        // evento
+        registerEvent(new InvoiceCanceledEvent(this.getId(), this.getCustomerId(),
+                this.getOrderId(), this.getCanceledAt()));
     }
 
     public void assignPaymentGatewayCode(String code) {

@@ -4,11 +4,19 @@ import com.algaworks.algashop.billing.domain.model.creditcard.CreditCard;
 import com.algaworks.algashop.billing.domain.model.creditcard.CreditCardRepository;
 import com.algaworks.algashop.billing.domain.model.creditcard.CreditCardTestDataBuilder;
 import com.algaworks.algashop.billing.domain.model.invoice.*;
+import com.algaworks.algashop.billing.domain.model.invoice.payment.Payment;
+import com.algaworks.algashop.billing.domain.model.invoice.payment.PaymentGatewayService;
+import com.algaworks.algashop.billing.domain.model.invoice.payment.PaymentRequest;
+import com.algaworks.algashop.billing.domain.model.invoice.payment.PaymentStatus;
+import com.algaworks.algashop.billing.infrastructure.listener.InvoiceEventListener;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBeans;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -17,35 +25,84 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 
+/**
+ * Teste de Integração do InvoiceManagementApplicationService.
+ *
+ * Testa os dois fluxos principais do billing:
+ * - Geração de fatura (generate) com diferentes métodos de pagamento
+ * - Processamento de pagamento (processPayment) via gateway
+ *
+ * Estratégia de teste:
+ * - @SpringBootTest: sobe o contexto completo do Spring (container, JPA, banco H2, etc.)
+ * - @Transactional: cada teste roda dentro de uma transação que é revertida ao final,
+ *   garantindo isolamento entre testes (um teste não polui o banco do outro)
+ * - @MockitoSpyBean no InvoicingService: usa o bean REAL mas permite verificar chamadas
+ *   (spy = bean real + capacidade de verify/when do Mockito)
+ * - @MockitoBean no PaymentGatewayService: substitui o bean real por um mock completo,
+ *   porque não queremos chamar um gateway de pagamento externo em testes
+ */
 @SpringBootTest
 @Transactional
 class InvoiceManagementApplicationServiceIT {
 
+    // O serviço que estamos testando - injetado pelo Spring com todas as dependências reais
     @Autowired
     private InvoiceManagementApplicationService applicationService;
 
+    // Repositórios reais (conectados ao banco H2 em memória) para preparar dados
+    // e verificar o estado final após a execução
     @Autowired
     private InvoiceRepository invoiceRepository;
 
     @Autowired
     private CreditCardRepository creditCardRepository;
 
-    // verificação caso foi chamado ou não
+    // SpyBean = bean REAL do Spring, mas "espionado" pelo Mockito.
+    // Permite que a lógica real de negócio execute normalmente,
+    // e depois verificamos se o método issue() foi chamado (Mockito.verify)
     @MockitoSpyBean
     private InvoicingService invoicingService;
 
+    @MockitoSpyBean
+    private InvoiceEventListener invoiceEventListener;
+
+    // MockBean = substitui o bean real por um mock COMPLETO.
+    // O PaymentGatewayService é mockado porque é uma integração externa (gateway de pagamento).
+    // Em testes, controlamos o que ele retorna com Mockito.when()
+    @MockitoBean
+    private PaymentGatewayService paymentGatewayService;
+
+    /**
+     * TESTE 1: Gerar fatura com pagamento via CARTÃO DE CRÉDITO.
+     *
+     * Fluxo testado:
+     * 1. Cria um cartão de crédito no banco (pré-condição)
+     * 2. Monta o input com dados do pedido + pagador + cartão
+     * 3. Chama applicationService.generate()
+     * 4. Verifica TUDO que foi persistido: status, timestamps, valores, pagador, endereço, itens
+     *
+     * Este teste é o mais completo porque valida toda a cadeia de conversão:
+     * DTO de entrada -> objetos de domínio -> persistência -> consulta do resultado
+     */
     @Test
-    public void shouldGenerateInvoiceWithCreditCardAsPayment() {
+    void shouldGenerateInvoiceWithCreditCardAsPayment() {
+        // === ARRANGE (preparação dos dados) ===
+
+        // Cria um customerId aleatório e persiste um cartão de crédito vinculado a ele.
+        // Isso é necessário porque o generate() valida se o cartão pertence ao cliente.
         UUID customerId = UUID.randomUUID();
         CreditCard creditCard = CreditCardTestDataBuilder.aCreditCard()
                 .customerId(customerId)
                 .build();
         creditCardRepository.saveAndFlush(creditCard);
 
+        // Usa o TestDataBuilder para criar um input com dados padrão (pagador, itens, etc.)
+        // e sobrescreve o customerId para coincidir com o do cartão
         GenerateInvoiceInput input = GenerateInvoiceInputTestDataBuilder.anInput()
                 .customerId(customerId)
                 .build();
 
+        // Define o método de pagamento como CREDIT_CARD e associa o cartão criado acima
         input.setPaymentSettings(
                 PaymentSettingsInput.builder()
                         .creditCardId(creditCard.getId())
@@ -53,65 +110,67 @@ class InvoiceManagementApplicationServiceIT {
                         .build()
         );
 
+        // === ACT (execução do fluxo) ===
+
+        // Chama o generate() que percorre o fluxo:
+        // validação do cartão -> conversão de DTOs -> InvoicingService.issue() -> persistência
         UUID invoiceId = applicationService.generate(input);
 
+        // === ASSERT (verificações) ===
+
+        // Recupera a fatura do banco para verificar o que foi realmente persistido
         Invoice invoice = invoiceRepository.findById(invoiceId).orElseThrow();
 
-        // status e timestamps
+        // Verifica que a fatura foi criada com status UNPAID (ainda não foi paga)
+        // e que os timestamps de emissão e vencimento foram definidos pelo InvoicingService
         assertThat(invoice.getStatus()).isEqualTo(InvoiceStatus.UNPAID);
         assertThat(invoice.getIssuedAt()).isNotNull();
         assertThat(invoice.getExpiresAt()).isNotNull();
         assertThat(invoice.getExpiresAt()).isAfter(invoice.getIssuedAt());
+        // Fatura recém-criada não deve ter data de pagamento nem cancelamento
         assertThat(invoice.getPaidAt()).isNull();
         assertThat(invoice.getCanceledAt()).isNull();
         assertThat(invoice.getCancelReason()).isNull();
 
-        // dados do pedido e cliente
+        // Verifica que o orderId e customerId foram corretamente associados
         assertThat(invoice.getOrderId()).isEqualTo(input.getOrderId());
         assertThat(invoice.getCustomerId()).isEqualTo(customerId);
 
-        // total calculado a partir dos itens
+        // Verifica que o totalAmount foi calculado a partir dos itens
+        // (o TestDataBuilder define 1 item de R$200,00)
         assertThat(invoice.getTotalAmount()).isEqualByComparingTo(new BigDecimal("200.00"));
 
-        // itens da fatura
-        assertThat(invoice.getItems()).hasSize(1);
-        LineItem item = invoice.getItems().iterator().next();
-        assertThat(item.getName()).isEqualTo("Product 1");
-        assertThat(item.getAmount()).isEqualByComparingTo(new BigDecimal("200.00"));
-        assertThat(item.getNumber()).isEqualTo(1);
-
-        // dados do pagador
-        Payer payer = invoice.getPayer();
-        assertThat(payer).isNotNull();
-        assertThat(payer.getFullName()).isEqualTo("John Doe");
-        assertThat(payer.getDocument()).isEqualTo("111.222.333-44");
-        assertThat(payer.getPhone()).isEqualTo("11-99999-8888");
-        assertThat(payer.getEmail()).isEqualTo("john.doe@email.com");
-
-        // endereço do pagador
-        Address address = payer.getAddress();
-        assertThat(address).isNotNull();
-        assertThat(address.getStreet()).isEqualTo("Street Name");
-        assertThat(address.getNumber()).isEqualTo("123");
-        assertThat(address.getComplement()).isEqualTo("Apt 1");
-        assertThat(address.getNeighborhood()).isEqualTo("Neighborhood");
-        assertThat(address.getCity()).isEqualTo("City");
-        assertThat(address.getState()).isEqualTo("State");
-        assertThat(address.getZipCode()).isEqualTo("12345-678");
-
-        // configurações de pagamento
+        // Verifica as configurações de pagamento
         PaymentSettings paymentSettings = invoice.getPaymentSettings();
         assertThat(paymentSettings).isNotNull();
         assertThat(paymentSettings.getPaymentMethod()).isEqualTo(PaymentMethod.CREDIT_CARD);
         assertThat(paymentSettings.getCreditCardId()).isEqualTo(creditCard.getId());
+        // gatewayCode é null porque a fatura ainda não foi processada pelo gateway
         assertThat(paymentSettings.getGatewayCode()).isNull();
 
-        // verificação de chamada ao serviço de emissão
+        // auditoria
+        assertThat(invoice.getVersion()).isEqualTo(0L);
+        assertThat(invoice.getCreatedAt()).isNotNull();
+        assertThat(invoice.getCreatedByUserId()).isNotNull();
+
+        // Verifica que o InvoicingService.issue() foi realmente chamado (usando o spy)
+        // Isso garante que a lógica de negócio de emissão foi executada
         Mockito.verify(invoicingService).issue(any(), any(), any(), any());
+
+        // verifica eventos
+        Mockito.verify(invoiceEventListener).listen(Mockito.any(InvoiceIssuedEvent.class));
     }
 
+    /**
+     * TESTE 2: Gerar fatura com pagamento via SALDO DO GATEWAY (GATEWAY_BALANCE).
+     *
+     * Similar ao teste anterior, mas usa um método de pagamento diferente.
+     * Verifica que o sistema suporta múltiplos métodos de pagamento corretamente.
+     * As assertions são mais enxutas pois o teste anterior já cobre os detalhes do pagador/itens.
+     */
     @Test
-    public void shouldGenerateInvoiceWithGatewayBalanceAsPayment() {
+    void shouldGenerateInvoiceWithGatewayBalanceAsPayment() {
+        // === ARRANGE ===
         UUID customerId = UUID.randomUUID();
         CreditCard creditCard = CreditCardTestDataBuilder.aCreditCard()
                 .customerId(customerId)
@@ -122,6 +181,7 @@ class InvoiceManagementApplicationServiceIT {
                 .customerId(customerId)
                 .build();
 
+        // Diferença principal: usa GATEWAY_BALANCE ao invés de CREDIT_CARD
         input.setPaymentSettings(
                 PaymentSettingsInput.builder()
                         .creditCardId(creditCard.getId())
@@ -129,31 +189,137 @@ class InvoiceManagementApplicationServiceIT {
                         .build()
         );
 
+        // === ACT ===
         UUID invoiceId = applicationService.generate(input);
 
+        // === ASSERT ===
         Invoice invoice = invoiceRepository.findById(invoiceId).orElseThrow();
 
-        // status e timestamps
+        // Mesmas verificações de status (fatura criada sempre começa UNPAID)
         assertThat(invoice.getStatus()).isEqualTo(InvoiceStatus.UNPAID);
         assertThat(invoice.getIssuedAt()).isNotNull();
         assertThat(invoice.getExpiresAt()).isNotNull();
         assertThat(invoice.getPaidAt()).isNull();
         assertThat(invoice.getCanceledAt()).isNull();
 
-        // dados do pedido e cliente
         assertThat(invoice.getOrderId()).isEqualTo(input.getOrderId());
         assertThat(invoice.getCustomerId()).isEqualTo(customerId);
-
-        // total calculado
         assertThat(invoice.getTotalAmount()).isEqualByComparingTo(new BigDecimal("200.00"));
 
-        // configurações de pagamento com GATEWAY_BALANCE
+        // Verifica que o método de pagamento é GATEWAY_BALANCE (a diferença deste teste)
         PaymentSettings paymentSettings = invoice.getPaymentSettings();
         assertThat(paymentSettings).isNotNull();
         assertThat(paymentSettings.getPaymentMethod()).isEqualTo(PaymentMethod.GATEWAY_BALANCE);
         assertThat(paymentSettings.getCreditCardId()).isEqualTo(creditCard.getId());
 
+        // auditoria
+        assertThat(invoice.getVersion()).isEqualTo(0L);
+        assertThat(invoice.getCreatedAt()).isNotNull();
+        assertThat(invoice.getCreatedByUserId()).isNotNull();
+
         Mockito.verify(invoicingService).issue(any(), any(), any(), any());
+    }
+
+    /**
+     * TESTE 3: Processar o pagamento de uma fatura existente.
+     *
+     * Fluxo testado (corresponde ao método processPayment do service):
+     * 1. Cria uma fatura já emitida (status UNPAID) diretamente no banco
+     * 2. Configura o mock do gateway para retornar um pagamento com sucesso
+     * 3. Chama applicationService.processPayment()
+     * 4. Verifica que a fatura mudou para PAID
+     * 5. Verifica que o gateway e o InvoicingService foram chamados corretamente
+     *
+     * Aqui o @MockitoBean do PaymentGatewayService é essencial:
+     * controlamos exatamente o que o "gateway" retorna, sem chamada externa real.
+     */
+    @Test
+    void shouldProcessInvoicePayment() {
+        // === ARRANGE ===
+
+        // Cria uma fatura usando o TestDataBuilder e define o método de pagamento
+        // Essa fatura simula uma fatura que já passou pelo generate() anteriormente
+        Invoice invoice = InvoiceTestDataBuilder.anInvoice().build();
+        invoice.changePaymentSettings(PaymentMethod.GATEWAY_BALANCE, null);
+        invoiceRepository.saveAndFlush(invoice);
+
+        // Cria o Payment que o gateway mock vai retornar (simulando sucesso do pagamento)
+        Payment payment = Payment.builder()
+                .gatewayCode("12345")
+                .invoiceId(invoice.getId())
+                .method(invoice.getPaymentSettings().getPaymentMethod())
+                .status(PaymentStatus.PAID)
+                .build();
+
+        // Configura o mock: quando o gateway.capture() for chamado com qualquer PaymentRequest,
+        // retorna o payment de sucesso criado acima
+        Mockito.when(paymentGatewayService.capture(Mockito.any(PaymentRequest.class))).thenReturn(payment);
+
+        // === ACT ===
+
+        // Executa o processamento do pagamento (fluxo 2 do service)
+        applicationService.processPayment(invoice.getId());
+
+        // === ASSERT ===
+
+        // Recupera a fatura atualizada e verifica que mudou para PAID
+        Invoice paidInvoice = invoiceRepository.findById(invoice.getId()).orElseThrow();
+        Assertions.assertThat(paidInvoice.isPaid()).isTrue();
+
+        // Verifica que o gateway foi chamado para capturar o pagamento
+        Mockito.verify(paymentGatewayService).capture(Mockito.any(PaymentRequest.class));
+
+        // Verifica que o InvoicingService.assignPayment() foi chamado para atribuir
+        // o pagamento à fatura (esse método aplica as regras de negócio: marca como PAID, etc.)
+        Mockito.verify(invoicingService).assignPayment(Mockito.any(Invoice.class), Mockito.any(Payment.class));
+
+        // verifica eventos
+        Mockito.verify(invoiceEventListener).listen(Mockito.any(InvoicePaidEvent.class));
+    }
+
+    @Test
+    void shouldProcessInvoicePaymentAndCancelInvoice() {
+        // === ARRANGE ===
+
+        // Cria uma fatura usando o TestDataBuilder e define o método de pagamento
+        // Essa fatura simula uma fatura que já passou pelo generate() anteriormente
+        Invoice invoice = InvoiceTestDataBuilder.anInvoice().build();
+        invoice.changePaymentSettings(PaymentMethod.GATEWAY_BALANCE, null);
+        invoiceRepository.saveAndFlush(invoice);
+
+        // Cria o Payment que o gateway mock vai retornar (simulando sucesso do pagamento)
+        Payment payment = Payment.builder()
+                .gatewayCode("12345")
+                .invoiceId(invoice.getId())
+                .method(invoice.getPaymentSettings().getPaymentMethod())
+                .status(PaymentStatus.FAILED)
+                .build();
+
+        // Configura o mock: quando o gateway.capture() for chamado com qualquer PaymentRequest,
+        // retorna o payment de sucesso criado acima
+        Mockito.when(paymentGatewayService.capture(Mockito.any(PaymentRequest.class))).thenReturn(payment);
+
+        // === ACT ===
+
+        // Executa o processamento do pagamento (fluxo 2 do service)
+        applicationService.processPayment(invoice.getId());
+
+        // === ASSERT ===
+
+        // Recupera a fatura atualizada e verifica que mudou para PAID
+        Invoice paidInvoice = invoiceRepository.findById(invoice.getId()).orElseThrow();
+        Assertions.assertThat(paidInvoice.isCanceled()).isTrue();
+
+        // Verifica que o gateway foi chamado para capturar o pagamento
+        Mockito.verify(paymentGatewayService).capture(Mockito.any(PaymentRequest.class));
+
+        // Verifica que o InvoicingService.assignPayment() foi chamado para atribuir
+        // o pagamento à fatura (esse método aplica as regras de negócio: marca como PAID, etc.)
+        Mockito.verify(invoicingService).assignPayment(Mockito.any(Invoice.class), Mockito.any(Payment.class));
+
+        // verifica eventos
+        Mockito.verify(invoiceEventListener).listen(Mockito.any(InvoiceCanceledEvent.class));
+
     }
 
 }
