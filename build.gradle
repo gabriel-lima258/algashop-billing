@@ -47,9 +47,16 @@ dependencies {
     implementation 'org.flywaydb:flyway-database-postgresql'
     runtimeOnly 'org.postgresql:postgresql'
 
+    // ambiente dev
 	compileOnly 'org.projectlombok:lombok'
 	annotationProcessor 'org.projectlombok:lombok'
-	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+
+    // ambiente teste
+    testCompileOnly 'org.projectlombok:lombok'
+    testAnnotationProcessor 'org.projectlombok:lombok'
+
+    testImplementation 'org.wiremock:wiremock-standalone:3.13.1'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.assertj:assertj-core:3.27.3'
     testRuntimeOnly 'com.h2database:h2'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
@@ -58,6 +65,24 @@ dependencies {
 
 tasks.named('test') {
 	useJUnitPlatform()
+}
+
+// customiza o nome do jar criado
+bootJar {
+    archiveFileName = 'billing.jar'
+}
+
+// task para realizar o build da aplicação
+tasks.register('dockerBuild', Exec) {
+    description = 'Builds a multi-plataform Docker image using Buildx'
+    group = 'build'
+    dependsOn('bootJar')
+    workingDir project.rootDir
+    commandLine '/usr/local/bin/docker', 'buildx', 'build',
+            '--platform', 'linux/arm64/v8,linux/amd64',
+            '--tag', 'gabriel58221/billing:dev',
+            '--push',
+            '.'
 }
 
 
@@ -79,6 +104,8 @@ tasks.register('integrationTest', Test) {
 
 	testClassesDirs = sourceSets.test.output.classesDirs
 	classpath = sourceSets.test.runtimeClasspath
+
+	systemProperty 'spring.profiles.active', 'test'
 
 	shouldRunAfter test
 

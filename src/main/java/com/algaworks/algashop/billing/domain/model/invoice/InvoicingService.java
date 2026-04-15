@@ -24,16 +24,7 @@ public class InvoicingService {
     // atualizar o processamento de pagamento
     public void assignPayment(Invoice invoice, Payment payment) {
         invoice.assignPaymentGatewayCode(payment.getGatewayCode());
-        switch (payment.getStatus()) {
-            case FAILED -> {
-                invoice.cancel("Payment failed");
-            }
-            case REFUNDED -> {
-                invoice.cancel("Payment refunded");
-            }
-            case PAID -> {
-                invoice.markAsPaid();
-            }
-        }
+        // atualiza status pelo webhook
+        invoice.updatePaymentStatus(payment.getStatus());
     }
 }

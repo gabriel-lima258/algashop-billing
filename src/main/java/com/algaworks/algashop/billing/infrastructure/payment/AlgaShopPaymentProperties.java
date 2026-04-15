@@ -19,7 +19,7 @@ public class AlgaShopPaymentProperties {
 
     @NotNull
     @Valid
-    private FastpayProperties properties;
+    private FastpayProperties fastpay;
 
     public enum AlgaShopPaymentProvider {
         FAKE,
@@ -34,5 +34,8 @@ public class AlgaShopPaymentProperties {
 
         @NotBlank
         private String privateToken;
+
+        @NotBlank
+        private String webhookUrl;
     }
 }

@@ -2,6 +2,7 @@ package com.algaworks.algashop.billing.domain.model.invoice;
 
 import com.algaworks.algashop.billing.domain.model.AbstractAuditableAggregateRoot;
 import com.algaworks.algashop.billing.domain.model.BusinessException;
+import com.algaworks.algashop.billing.domain.model.invoice.payment.PaymentStatus;
 import com.algaworks.algashop.billing.domain.model.util.IdGenerator;
 import jakarta.persistence.*;
 import org.apache.commons.lang3.StringUtils;
@@ -46,6 +47,11 @@ public class Invoice extends AbstractAuditableAggregateRoot {
     // lista de values objects
     @ElementCollection
     @CollectionTable(name = "invoice_line_item", joinColumns = @JoinColumn(name = "invoice_id"))
+    @AttributeOverrides({
+        @AttributeOverride(name = "number", column = @Column(name = "number")),
+        @AttributeOverride(name = "name", column = @Column(name = "name")),
+        @AttributeOverride(name = "amount", column = @Column(name = "amount"))
+    })
     private Set<LineItem> items = new HashSet<>();
 
     @Embedded
@@ -154,5 +160,19 @@ public class Invoice extends AbstractAuditableAggregateRoot {
         // evita problemas de persistencia por causa do cascade
         paymentSetting.setInvoice(this);
         this.setPaymentSettings(paymentSetting);
+    }
+
+    public void updatePaymentStatus(PaymentStatus status) {
+        switch (status) {
+            case FAILED -> {
+                cancel("Payment failed");
+            }
+            case REFUNDED -> {
+                cancel("Payment refunded");
+            }
+            case PAID -> {
+                markAsPaid();
+            }
+        }
     }
 }

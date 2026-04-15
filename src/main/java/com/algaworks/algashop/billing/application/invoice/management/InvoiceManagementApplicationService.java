@@ -3,9 +3,12 @@ package com.algaworks.algashop.billing.application.invoice.management;
 import com.algaworks.algashop.billing.domain.model.creditcard.CreditCardNotFoundException;
 import com.algaworks.algashop.billing.domain.model.creditcard.CreditCardRepository;
 import com.algaworks.algashop.billing.domain.model.invoice.*;
+import com.algaworks.algashop.billing.presentation.BadGatewayException;
+import com.algaworks.algashop.billing.presentation.GatewayTimeoutException;
 import com.algaworks.algashop.billing.domain.model.invoice.payment.Payment;
 import com.algaworks.algashop.billing.domain.model.invoice.payment.PaymentGatewayService;
 import com.algaworks.algashop.billing.domain.model.invoice.payment.PaymentRequest;
+import com.algaworks.algashop.billing.domain.model.invoice.payment.PaymentStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.antlr.v4.runtime.misc.NotNull;
@@ -13,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -112,10 +116,13 @@ public class InvoiceManagementApplicationService {
         Payment payment;
         try {
             payment = paymentGatewayService.capture(paymentRequest);
+        } catch (GatewayTimeoutException | BadGatewayException e) {
+            // Exceções de integração propagam para o controller retornar 502/504
+            throw e;
         } catch (Exception e) {
             // Passo 4a (cenário de FALHA): Se o gateway lançar exceção,
             // cancela a fatura e registra o motivo do cancelamento
-            String errorMessage = "Payment capture failded";
+            String errorMessage = "Payment capture failed";
             log.error(errorMessage);
             invoice.cancel(errorMessage);
             invoiceRepository.saveAndFlush(invoice);
@@ -125,6 +132,15 @@ public class InvoiceManagementApplicationService {
         // Passo 4b (cenário de SUCESSO): Delega ao Domain Service atribuir o pagamento
         // O InvoicingService.assignPayment() marca a fatura como PAID, define paidAt, etc.
         invoicingService.assignPayment(invoice, payment);
+        invoiceRepository.saveAndFlush(invoice);
+    }
+
+    @Transactional
+    public void updatePaymentStatus(UUID invoiceId, PaymentStatus paymentStatus) {
+        // Passo 1: Recupera a fatura do banco
+        Invoice invoice = invoiceRepository.findById(invoiceId).orElseThrow(InvoiceNotFoundException::new);
+        // Passo 2: atualiza o status de pagamento via webhook
+        invoice.updatePaymentStatus(paymentStatus);
         invoiceRepository.saveAndFlush(invoice);
     }
 
@@ -147,7 +163,7 @@ public class InvoiceManagementApplicationService {
      * Cada item recebe uma numeração sequencial (1, 2, 3...) para ordenação na fatura.
      * Usa LinkedHashSet para preservar a ordem de inserção.
      */
-    private Set<LineItem> convertToLineItems(Set<LineItemInput> items) {
+    private Set<LineItem> convertToLineItems(List<LineItemInput> items) {
         Set<LineItem> lineItems = new LinkedHashSet<>();
         int itemNumber = 1;
         for (LineItemInput itemInput: items) {
@@ -193,7 +209,8 @@ public class InvoiceManagementApplicationService {
      */
     private void verififyCreditCardId(UUID creditCardId, @NotNull UUID customerId) {
         if (creditCardId != null && !creditCardRepository.existsByIdAndCustomerId(creditCardId, customerId)) {
-            throw new CreditCardNotFoundException();
+            throw new CreditCardNotFoundException(String.format("Credit card %s not found", creditCardId));
         }
     }
+
 }
