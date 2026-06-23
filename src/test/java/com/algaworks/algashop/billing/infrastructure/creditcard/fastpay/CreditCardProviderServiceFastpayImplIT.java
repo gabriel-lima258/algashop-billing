@@ -9,7 +9,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 // classe de teste para registrar, encontrar e deletar um credit card
-@SpringBootTest
 class CreditCardProviderServiceFastpayImplIT extends AbstractFastpayImplIT {
 
     @BeforeAll

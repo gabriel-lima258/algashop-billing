@@ -1,5 +1,6 @@
 package com.algaworks.algashop.billing.application.invoice.management;
 
+import com.algaworks.algashop.billing.application.invoice.AbstractApplicationTest;
 import com.algaworks.algashop.billing.domain.model.creditcard.CreditCard;
 import com.algaworks.algashop.billing.domain.model.creditcard.CreditCardRepository;
 import com.algaworks.algashop.billing.domain.model.creditcard.CreditCardTestDataBuilder;
@@ -41,9 +42,7 @@ import static org.mockito.ArgumentMatchers.any;
  * - @MockitoBean no PaymentGatewayService: substitui o bean real por um mock completo,
  *   porque não queremos chamar um gateway de pagamento externo em testes
  */
-@SpringBootTest
-@Transactional
-class InvoiceManagementApplicationServiceIT {
+class InvoiceManagementApplicationServiceIT extends AbstractApplicationTest {
 
     // O serviço que estamos testando - injetado pelo Spring com todas as dependências reais
     @Autowired

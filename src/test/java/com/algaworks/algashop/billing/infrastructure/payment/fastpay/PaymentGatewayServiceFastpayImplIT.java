@@ -20,8 +20,7 @@ import java.math.BigDecimal;
 import java.util.UUID;
 
 
-@SpringBootTest
-@Transactional
+
 class PaymentGatewayServiceFastpayImplIT extends AbstractFastpayImplIT {
 
     @Autowired

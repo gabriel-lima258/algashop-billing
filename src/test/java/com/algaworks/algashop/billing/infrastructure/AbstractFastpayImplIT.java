@@ -4,13 +4,16 @@ import com.algaworks.algashop.billing.domain.model.creditcard.CreditCardReposito
 import com.algaworks.algashop.billing.domain.model.creditcard.LimitedCreditCard;
 import com.algaworks.algashop.billing.infrastructure.creditcard.fastpay.*;
 import com.algaworks.algashop.billing.infrastructure.payment.AlgaShopPaymentProperties;
+import com.algaworks.algashop.billing.presentation.util.TestContainerPostgresSQLConfig;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.common.ClasspathFileSource;
 import com.github.tomakehurst.wiremock.extension.responsetemplating.ResponseTemplateTransformer;
 import com.github.tomakehurst.wiremock.extension.responsetemplating.TemplateEngine;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClient;
 
 import java.time.Year;
@@ -19,7 +22,9 @@ import java.util.UUID;
 
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.options;
 
-@Import(FastpayCreditCardTokenizationAPIClientConfig.class)
+@SpringBootTest
+@Transactional
+@Import({FastpayCreditCardTokenizationAPIClientConfig.class, TestContainerPostgresSQLConfig.class})
 public abstract class AbstractFastpayImplIT {
 
     @Autowired

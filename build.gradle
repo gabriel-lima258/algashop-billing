@@ -55,6 +55,12 @@ dependencies {
     testCompileOnly 'org.projectlombok:lombok'
     testAnnotationProcessor 'org.projectlombok:lombok'
 
+    // Testcontainers é uma biblioteca Java que sobe containers Docker reais durante a execução dos testes,
+    // permitindo que você teste contra infraestrutura de verdade em vez de mocks ou bancos em memória.
+    testImplementation 'org.springframework.boot:spring-boot-testcontainers'
+    testImplementation 'org.testcontainers:junit-jupiter'
+    testImplementation 'org.testcontainers:postgresql'
+
     testImplementation 'org.wiremock:wiremock-standalone:3.13.1'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.assertj:assertj-core:3.27.3'
