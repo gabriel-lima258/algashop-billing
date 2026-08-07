@@ -10,14 +10,10 @@ import com.algaworks.algashop.billing.domain.model.invoice.payment.PaymentGatewa
 import com.algaworks.algashop.billing.domain.model.invoice.payment.PaymentRequest;
 import com.algaworks.algashop.billing.infrastructure.creditcard.fastpay.FastpayCreditCardAPIClient;
 import com.algaworks.algashop.billing.infrastructure.payment.AlgaShopPaymentProperties;
-import com.algaworks.algashop.billing.presentation.BadGatewayException;
-import com.algaworks.algashop.billing.presentation.GatewayTimeoutException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.HttpServerErrorException;
-import org.springframework.web.client.ResourceAccessException;
 
 import java.util.UUID;
 
@@ -27,35 +23,22 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class PaymentGatewayServiceFastpayImpl implements PaymentGatewayService {
 
-    private final FastpayPaymentAPIClient fastpayPaymentAPIClient;
+    private final ResilientFastpayPaymentAPIClient fastpayPaymentAPIClient;
     private final CreditCardRepository creditCardRepository;
 
     private final AlgaShopPaymentProperties algaShopPaymentProperties;
 
     @Override
     public Payment capture(PaymentRequest request) {
-        log.info("Capturing payment via Fastpay for invoice {}", request.getInvoiceId());
-        try {
-            FastpayPaymentInput input = convertToInput(request);
-            FastpayPaymentModel response = fastpayPaymentAPIClient.capture(input);
-            return convertToPayment(response);
-        } catch (ResourceAccessException e) {
-            throw new GatewayTimeoutException("Fastpay gateway is unavailable", e);
-        } catch (HttpServerErrorException e) {
-            throw new BadGatewayException("Fastpay gateway returned an error", e);
-        }
+        FastpayPaymentInput input = convertToInput(request);
+        FastpayPaymentModel response = fastpayPaymentAPIClient.capture(input);
+        return convertToPayment(response);
     }
 
     @Override
     public Payment findByCode(String gatewayCode) {
-        try {
-            FastpayPaymentModel response = fastpayPaymentAPIClient.findById(gatewayCode);
-            return convertToPayment(response);
-        } catch (ResourceAccessException e) {
-            throw new GatewayTimeoutException("Fastpay gateway is unavailable", e);
-        } catch (HttpServerErrorException e) {
-            throw new BadGatewayException("Fastpay gateway returned an error", e);
-        }
+        FastpayPaymentModel response = fastpayPaymentAPIClient.findByCode(gatewayCode);
+        return convertToPayment(response);
     }
 
     private FastpayPaymentInput convertToInput(PaymentRequest request) {

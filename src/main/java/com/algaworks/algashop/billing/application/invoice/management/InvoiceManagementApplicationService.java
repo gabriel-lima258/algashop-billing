@@ -50,6 +50,10 @@ public class InvoiceManagementApplicationService {
     // Repositório para validar cartões de crédito do cliente
     private final CreditCardRepository creditCardRepository;
 
+    // Transações curtas do fluxo de pagamento - existem para manter a chamada ao gateway
+    // fora de transação. Ver o javadoc de processPayment.
+    private final InvoicePaymentTransactions invoicePaymentTransactions;
+
     /**
      * FLUXO 1: Gerar uma fatura (Invoice) para um pedido.
      *
@@ -93,46 +97,36 @@ public class InvoiceManagementApplicationService {
     /**
      * FLUXO 2: Processar o pagamento de uma fatura existente.
      *
-     * Passo a passo:
-     * 1. Busca a fatura pelo ID (lança exceção se não encontrar)
-     * 2. Monta o PaymentRequest com os dados da fatura
-     * 3. Envia ao gateway de pagamento para capturar o valor
-     * 4a. Se a captura FALHAR: cancela a fatura com a mensagem de erro
-     * 4b. Se a captura tiver SUCESSO: atribui o pagamento à fatura via InvoicingService
-     * 5. Persiste o estado atualizado da fatura
+     * ATENCAO - este metodo NAO e @Transactional, e isso e essencial. A chamada ao gateway
+     * acontece entre duas transacoes curtas, nunca dentro de uma:
      *
-     * Esse método seria chamado após o generate(), tipicamente por um listener
-     * de evento ou um processo assíncrono que dispara o processamento do pagamento.
+     *     loadPaymentRequest (tx)  ->  capture (SEM tx)  ->  assignPayment (tx)
+     *
+     * Quando o capture ficava dentro da transacao, a conexao do banco ficava presa pelo tempo
+     * inteiro da chamada HTTP. Gateway lento = pool de conexoes esgotado = billing inteiro
+     * fora do ar, inclusive endpoints que nem usam o gateway. Ver InvoicePaymentTransactions.
+     *
+     * FALHA DE INTEGRACAO NAO CANCELA A FATURA. Timeout ou 5xx significam "nao sei se
+     * cobrou" - cancelar ai seria descartar uma fatura possivelmente paga. A fatura fica
+     * UNPAID e a conciliacao resolve: o webhook do Fastpay (replyToUrl -> updatePaymentStatus)
+     * ou uma consulta por findByCode. Errar para o lado de "pendente" e sempre mais barato
+     * que errar para o lado de "cancelada".
      */
-    @Transactional
     public void processPayment(UUID invoiceId) {
-        // Passo 1: Recupera a fatura do banco
-        Invoice invoice = invoiceRepository.findById(invoiceId).orElseThrow(InvoiceNotFoundException::new);
+        PaymentRequest paymentRequest = invoicePaymentTransactions.loadPaymentRequest(invoiceId);
 
-        // Passo 2: Extrai os dados necessários da fatura para montar a requisição ao gateway
-        PaymentRequest paymentRequest = toPaymentRequest(invoice);
-
-        // Passo 3: Tenta capturar o pagamento no gateway externo
         Payment payment;
         try {
             payment = paymentGatewayService.capture(paymentRequest);
         } catch (GatewayTimeoutException | BadGatewayException e) {
-            // Exceções de integração propagam para o controller retornar 502/504
+            // 502/504 para o cliente. A fatura fica pendente de conciliacao - o log precisa
+            // do id porque e por ele que alguem vai reconciliar depois.
+            log.error("Payment capture failed for invoice {} - invoice left pending for reconciliation",
+                    invoiceId, e);
             throw e;
-        } catch (Exception e) {
-            // Passo 4a (cenário de FALHA): Se o gateway lançar exceção,
-            // cancela a fatura e registra o motivo do cancelamento
-            String errorMessage = "Payment capture failed";
-            log.error(errorMessage);
-            invoice.cancel(errorMessage);
-            invoiceRepository.saveAndFlush(invoice);
-            return;
         }
 
-        // Passo 4b (cenário de SUCESSO): Delega ao Domain Service atribuir o pagamento
-        // O InvoicingService.assignPayment() marca a fatura como PAID, define paidAt, etc.
-        invoicingService.assignPayment(invoice, payment);
-        invoiceRepository.saveAndFlush(invoice);
+        invoicePaymentTransactions.assignPayment(invoiceId, payment);
     }
 
     @Transactional
@@ -142,20 +136,6 @@ public class InvoiceManagementApplicationService {
         // Passo 2: atualiza o status de pagamento via webhook
         invoice.updatePaymentStatus(paymentStatus);
         invoiceRepository.saveAndFlush(invoice);
-    }
-
-    /**
-     * Monta o PaymentRequest a partir dos dados da Invoice.
-     * Esse DTO é o contrato entre o Application Service e o PaymentGatewayService.
-     */
-    private PaymentRequest toPaymentRequest(Invoice invoice) {
-        return PaymentRequest.builder()
-                .amount(invoice.getTotalAmount())
-                .method(invoice.getPaymentSettings().getPaymentMethod())
-                .creditCardId(invoice.getPaymentSettings().getCreditCardId())
-                .payer(invoice.getPayer())
-                .invoiceId(invoice.getId())
-                .build();
     }
 
     /**

@@ -5,17 +5,22 @@ import com.algaworks.algashop.billing.domain.model.creditcard.LimitedCreditCard;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.HttpClientErrorException;
 
 import java.util.Optional;
 import java.util.UUID;
 
+// So ADAPTA: implementa a porta do dominio e traduz o DTO do Fastpay para o modelo de
+// cartao. Resiliencia e traducao de erro moram no ResilientFastpayCreditCardAPIClient.
+//
+// Antes esta classe falava direto com o FastpayCreditCardAPIClient, entao a excecao crua do
+// RestClient subia ate o @ExceptionHandler(Exception.class) e virava 500 - onde o certo era
+// 502/504. E nao havia circuito nenhum protegendo o cadastro de cartao.
 @Service
 @ConditionalOnProperty(name = "algashop.integrations.payment.provider", havingValue = "FASTPAY")
 @RequiredArgsConstructor
 public class CreditCardProviderServiceFastpayImpl implements CreditCardProviderService {
 
-    private final FastpayCreditCardAPIClient fastpayCreditCardAPIClient;
+    private final ResilientFastpayCreditCardAPIClient fastpayCreditCardAPIClient;
 
     @Override
     public LimitedCreditCard register(UUID customerId, String tokenizedCard) {
@@ -24,22 +29,14 @@ public class CreditCardProviderServiceFastpayImpl implements CreditCardProviderS
                 .customerCode(customerId.toString())
                 .build();
 
-        FastpayCreditCardResponse response = fastpayCreditCardAPIClient.create(input);
-
-        return toLimitedCreditCard(response);
+        return toLimitedCreditCard(fastpayCreditCardAPIClient.create(input));
     }
 
     @Override
     public Optional<LimitedCreditCard> findById(String gatewayCode) {
-        FastpayCreditCardResponse response;
-
-        try {
-            response = fastpayCreditCardAPIClient.findById(gatewayCode);
-        } catch (HttpClientErrorException.NotFound e) {
-            return Optional.empty();
-        }
-
-        return Optional.of(toLimitedCreditCard(response));
+        // o 404 vira Optional.empty() dentro do cliente resiliente
+        return fastpayCreditCardAPIClient.findById(gatewayCode)
+                .map(this::toLimitedCreditCard);
     }
 
     @Override

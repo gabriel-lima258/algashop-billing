@@ -152,6 +152,35 @@ A propriedade `algashop.integrations.payment.provider` aceita `FASTPAY` ou `FAKE
 
 Falhas de rede são traduzidas na fronteira: `ResourceAccessException` → `GatewayTimeoutException` (504), `HttpServerErrorException` → `BadGatewayException` (502). O domínio nunca vê uma exceção de HTTP.
 
+### Resiliência — dividida por idempotência
+
+Aqui está a decisão que separa este serviço dos outros. Há **dois circuitos para o mesmo host**, e o critério não é a dependência — é o que a operação faz:
+
+```
+fastpayCB       findByCode, findById de cartão      COM retry
+fastpayWriteCB  capture, create/delete de cartão    maxRetries(0)
+```
+
+> **O `capture` nunca é retentado.** Timeout num POST de cobrança **não cancela** a autorização do outro lado — significa *"não sei se cobrou"*, e repetir é o caminho clássico da cobrança dupla. Quem resolve a incerteza é a conciliação (webhook do gateway ou `findByCode`), não outra tentativa.
+
+Por que não um circuito só, traduzindo as exceções do `capture` para tipos fora do `includes`? Funcionaria — e o "não retenta" passaria a depender de um detalhe silencioso da tradução, que qualquer refatoração futura reativaria sem ninguém perceber. **Em código que cobra dinheiro, explícito ganha de esperto.**
+
+Pela mesma razão, o read timeout do pagamento é de **20 segundos**, e não dos 7 usados em leitura: cortar cedo não protege de nada — só aumenta a frequência do pior estado possível, que é não saber se cobrou.
+
+E **falha de integração não cancela a fatura.** Ela fica `UNPAID` esperando conciliação; cancelar ali descartaria uma fatura possivelmente paga.
+
+### O que resiliência não resolve
+
+A mudança mais importante desta frente não é nenhum dos cinco padrões — é o `InvoicePaymentTransactions`:
+
+```
+loadPaymentRequest (tx)  →  capture (SEM tx)  →  assignPayment (tx)
+```
+
+Antes, `processPayment` era `@Transactional` e chamava o gateway lá dentro, segurando uma conexão do pool durante toda a ida. Dez faturas simultâneas com gateway lento esgotavam o pool e derrubavam o billing **inteiro**, inclusive endpoints que não tocam no gateway.
+
+Nenhum circuit breaker corrige isso: quando a chamada chega ao breaker, a conexão **já foi adquirida** pelo `@Transactional`, que está acima dele na pilha.
+
 ---
 
 ## Como rodar
@@ -182,6 +211,15 @@ O serviço responde em `http://localhost:8082`. O Flyway cria o schema (`credit_
 
 Os testes de integração sobem o **próprio PostgreSQL** via Testcontainers (`@ServiceConnection`), então não dependem do compose. O gateway é substituído por um **WireMock embarcado** na porta 8788, com stubs que reproduzem inclusive o ciclo de vida do cartão — criado, consultado, removido, e depois `404`.
 
+O `FastpayResilienceIT` prova a garantia mais importante do serviço por **contagem de requests**:
+
+```java
+// uma única tentativa de cobrança
+wireMockServer.verify(1, postRequestedFor(urlEqualTo(PAYMENTS_URL)));
+```
+
+Sem essa asserção, o teste passaria igual com retry ligado na cobrança.
+
 Não há contract tests neste serviço.
 
 ---
@@ -209,6 +247,8 @@ Caderno de estudos do projeto: [`algashop-docs`](https://github.com/gabriel-lima
 
 - [Arquitetura](https://github.com/gabriel-lima258/algashop-docs/blob/main/00-visao-geral/arquitetura.md) — como os quatro serviços se conectam
 - [Tratamento de erros](https://github.com/gabriel-lima258/algashop-docs/blob/main/03-testes-integracao/tratamento-erros-api.md) — `ProblemDetail`, e por que 502/504 existem separados
+- [Resiliência](https://github.com/gabriel-lima258/algashop-docs/blob/main/01-arquitetura-design/resiliencia.md) — os cinco padrões, e por que idempotência decide o que pode ser retentado
+- [Resiliência na prática](https://github.com/gabriel-lima258/algashop-docs/blob/main/04-infraestrutura/resiliencia-config.md) — parâmetros, biblioteca e como testar
 - [Contract tests e stubs](https://github.com/gabriel-lima258/algashop-docs/blob/main/03-testes-integracao/stubs-contract-tests.md) — WireMock e testes sem o outro serviço de pé
 - [Flyway](https://github.com/gabriel-lima258/algashop-docs/blob/main/02-persistencia/flyway.md) — versionar schema como código
 - [Ambiente local](https://github.com/gabriel-lima258/algashop-docs/blob/main/04-infraestrutura/ambiente-local.md) — portas, bancos e problemas comuns

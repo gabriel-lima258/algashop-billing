@@ -5,6 +5,7 @@ import com.algaworks.algashop.billing.domain.model.creditcard.CreditCard;
 import com.algaworks.algashop.billing.domain.model.creditcard.CreditCardRepository;
 import com.algaworks.algashop.billing.domain.model.creditcard.CreditCardTestDataBuilder;
 import com.algaworks.algashop.billing.domain.model.invoice.*;
+import com.algaworks.algashop.billing.presentation.BadGatewayException;
 import com.algaworks.algashop.billing.domain.model.invoice.payment.Payment;
 import com.algaworks.algashop.billing.domain.model.invoice.payment.PaymentGatewayService;
 import com.algaworks.algashop.billing.domain.model.invoice.payment.PaymentRequest;
@@ -319,6 +320,41 @@ class InvoiceManagementApplicationServiceIT extends AbstractApplicationTest {
         // verifica eventos
         Mockito.verify(invoiceEventListener).listen(Mockito.any(InvoiceCanceledEvent.class));
 
+    }
+
+    /**
+     * REGRA: falha de INTEGRACAO nao cancela a fatura.
+     *
+     * Timeout ou 5xx do gateway significam "nao sei se cobrou" - cancelar ai seria descartar
+     * uma fatura possivelmente paga. A fatura fica pendente e a conciliacao resolve (webhook
+     * do Fastpay ou consulta por findByCode).
+     *
+     * Nao confundir com o teste acima: la o gateway RESPONDE, com um Payment de status FAILED.
+     * Isso e uma resposta de negocio determinística e cancela mesmo. Aqui o gateway nao
+     * respondeu nada.
+     */
+    @Test
+    void shouldNotCancelInvoiceWhenGatewayFails() {
+        // === ARRANGE ===
+        Invoice invoice = InvoiceTestDataBuilder.anInvoice().build();
+        invoice.changePaymentSettings(PaymentMethod.GATEWAY_BALANCE, null);
+        invoiceRepository.saveAndFlush(invoice);
+
+        Mockito.when(paymentGatewayService.capture(Mockito.any(PaymentRequest.class)))
+                .thenThrow(new BadGatewayException.ServerErrorException("Fastpay API Bad Gateway", null));
+
+        // === ACT / ASSERT ===
+        // a excecao propaga para o controller devolver 502
+        Assertions.assertThatThrownBy(() -> applicationService.processPayment(invoice.getId()))
+                .isInstanceOf(BadGatewayException.class);
+
+        Invoice pendingInvoice = invoiceRepository.findById(invoice.getId()).orElseThrow();
+        Assertions.assertThat(pendingInvoice.isCanceled()).isFalse();
+        Assertions.assertThat(pendingInvoice.isPaid()).isFalse();
+
+        // nao houve pagamento para atribuir
+        Mockito.verify(invoicingService, Mockito.never())
+                .assignPayment(Mockito.any(Invoice.class), Mockito.any(Payment.class));
     }
 
 }

@@ -13,3 +13,26 @@ algashop:
   integrations:
     payment:
       provider: FASTPAY
+
+  # Politica de resiliencia das chamadas ao Fastpay.
+  #
+  # Estes valores ja eram os defaults do @Value no SpringCircuitBreakerConfig - explicita-los
+  # aqui nao muda nada em runtime, so torna visivel a quem opera o servico a politica que
+  # governa producao.
+  #
+  # ATENCAO: eles valem para o circuito de LEITURA (fastpayCB). O de escrita
+  # (fastpayWriteCB) ignora max-retries/delay/multiplier de proposito - ele e construido com
+  # maxRetries(0) fixo no codigo, porque capture nao pode ser retentado. Isso NAO e
+  # configuravel, e nao deve ser: a decisao de nao repetir uma cobranca nao pertence a um
+  # arquivo de propriedades.
+  resilience:
+    circuit-breaker:
+      # tentativas ALEM da original: 3 retries = 4 idas no total (so nas leituras)
+      max-retries: 3
+      # espera antes da 1a retentativa; dobra a cada rodada (3s -> 6s -> 12s)
+      delay: 3s
+      multiplier: 2
+      # quanto tempo o circuito fica aberto falhando rapido antes de testar HALF_OPEN
+      open-timeout: 5s
+      # tempo sem nenhuma falha que zera o estado do circuito
+      reset-timeout: 30s

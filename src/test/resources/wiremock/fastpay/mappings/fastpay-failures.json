@@ -1,0 +1,86 @@
+{
+  "mappings": [
+    {
+      "priority": 1,
+      "request": {
+        "method": "POST",
+        "urlPattern": "/api/v1/payments",
+        "bodyPatterns": [
+          { "matchesJsonPath": "$[?(@.referenceCode == '00000000-0000-0000-0000-000000000500')]" }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "jsonBody": { "error": "INTERNAL_ERROR" },
+        "headers": { "Content-Type": "application/json" }
+      }
+    },
+    {
+      "priority": 1,
+      "request": {
+        "method": "POST",
+        "urlPattern": "/api/v1/payments",
+        "bodyPatterns": [
+          { "matchesJsonPath": "$[?(@.referenceCode == '00000000-0000-0000-0000-000000000400')]" }
+        ]
+      },
+      "response": {
+        "status": 400,
+        "jsonBody": { "error": "INVALID_REQUEST" },
+        "headers": { "Content-Type": "application/json" }
+      }
+    },
+    {
+      "priority": 1,
+      "request": {
+        "method": "POST",
+        "urlPattern": "/api/v1/payments",
+        "bodyPatterns": [
+          { "matchesJsonPath": "$[?(@.referenceCode == '00000000-0000-0000-0000-000000000999')]" }
+        ]
+      },
+      "response": {
+        "fault": "CONNECTION_RESET_BY_PEER"
+      }
+    },
+    {
+      "priority": 1,
+      "request": {
+        "method": "GET",
+        "urlPattern": "/api/v1/payments/pay_server_error"
+      },
+      "response": {
+        "status": 500,
+        "jsonBody": { "error": "INTERNAL_ERROR" },
+        "headers": { "Content-Type": "application/json" }
+      }
+    },
+    {
+      "priority": 1,
+      "request": {
+        "method": "POST",
+        "urlPattern": "/api/v1/credit-cards",
+        "bodyPatterns": [
+          { "matchesJsonPath": "$[?(@.customerCode == '00000000-0000-0000-0000-000000000500')]" }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "jsonBody": { "error": "INTERNAL_ERROR" },
+        "headers": { "Content-Type": "application/json" }
+      }
+    },
+    {
+      "priority": 1,
+      "request": {
+        "method": "GET",
+        "urlPattern": "/api/v1/credit-cards/cc_not_found"
+      },
+      "response": {
+        "status": 404,
+        "jsonBody": { "error": "NOT_FOUND" },
+        "headers": { "Content-Type": "application/json" }
+      }
+    }
+  ]
+}
