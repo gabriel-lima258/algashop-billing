@@ -239,6 +239,20 @@ Ou multi-arquitetura com push:
 
 A base é `eclipse-temurin:25-jre`, acompanhando o toolchain do `build.gradle`.
 
+
+### Health check
+
+```bash
+curl -s localhost:8082/actuator/health | jq            # tudo
+curl -s localhost:8082/actuator/health/readiness | jq  # só o essencial
+```
+
+O grupo `readiness` inclui **apenas o banco** — o circuito do FastPay fora do ar não tira a instância de rotação, só marca o serviço como `DEGRADED`. É um status inventado pelo projeto, posicionado entre `UNKNOWN` e `UP` no `status.order`.
+
+> ⚠️ `DEGRADED` devolve **HTTP 200**: só `DOWN` e `OUT_OF_SERVICE` viram 503 por padrão. Um probe que olhe o código de status não vê diferença.
+
+Detalhes em [Health check e degradação](https://github.com/gabriel-lima258/algashop-docs/blob/main/04-infraestrutura/health-checks.md).
+
 ---
 
 ## Documentação
@@ -248,6 +262,7 @@ Caderno de estudos do projeto: [`algashop-docs`](https://github.com/gabriel-lima
 - [Arquitetura](https://github.com/gabriel-lima258/algashop-docs/blob/main/00-visao-geral/arquitetura.md) — como os quatro serviços se conectam
 - [Tratamento de erros](https://github.com/gabriel-lima258/algashop-docs/blob/main/03-testes-integracao/tratamento-erros-api.md) — `ProblemDetail`, e por que 502/504 existem separados
 - [Resiliência](https://github.com/gabriel-lima258/algashop-docs/blob/main/01-arquitetura-design/resiliencia.md) — os cinco padrões, e por que idempotência decide o que pode ser retentado
+- [Health check e degradação](https://github.com/gabriel-lima258/algashop-docs/blob/main/04-infraestrutura/health-checks.md) — liveness × readiness e o status DEGRADED
 - [Resiliência na prática](https://github.com/gabriel-lima258/algashop-docs/blob/main/04-infraestrutura/resiliencia-config.md) — parâmetros, biblioteca e como testar
 - [Contract tests e stubs](https://github.com/gabriel-lima258/algashop-docs/blob/main/03-testes-integracao/stubs-contract-tests.md) — WireMock e testes sem o outro serviço de pé
 - [Flyway](https://github.com/gabriel-lima258/algashop-docs/blob/main/02-persistencia/flyway.md) — versionar schema como código

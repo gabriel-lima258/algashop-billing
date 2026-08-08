@@ -1,12 +1,14 @@
 spring:
   datasource:
-    url: jdbc:postgresql://algashop-postgres:5432/ordering
+    url: jdbc:postgresql://algashop-postgres:5432/billing
   jpa:
     show-sql: false
   flyway:
     enabled: true
     locations: classpath:db/migration,classpath:db/testdata
-    url: jdbc:postgresql://algashop-postgres:5433/ordering
+    # 5432, nao 5433: 5433 e a porta PUBLICADA no host. Dentro da rede do compose
+    # quem responde e a porta do container.
+    url: jdbc:postgresql://algashop-postgres:5432/billing
 
 algashop:
   integrations:

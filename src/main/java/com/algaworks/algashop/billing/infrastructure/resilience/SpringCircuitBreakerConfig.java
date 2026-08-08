@@ -30,6 +30,9 @@ import java.time.Duration;
 @Configuration
 public class SpringCircuitBreakerConfig {
 
+    public static final String fastpayReadCB = "fastpayCB";
+    public static final String fastpayWriteCB = "fastpayWriteCB";
+
     // Customizer<...Factory> e o gancho que o Spring Cloud chama uma unica vez, no
     // startup, entregando a fabrica de circuit breakers para configurarmos.
     @Bean
@@ -63,13 +66,13 @@ public class SpringCircuitBreakerConfig {
                     .retryPolicy(readRetryPolicy)
                     .openTimeout(openTimeout)
                     .resetTimeout(resetTimeout)
-                    .build(), "fastpayCB");
+                    .build(), fastpayReadCB);
 
             factory.configure(builder -> builder
                     .retryPolicy(writeRetryPolicy)
                     .openTimeout(openTimeout)
                     .resetTimeout(resetTimeout)
-                    .build(), "fastpayWriteCB");
+                    .build(), fastpayWriteCB);
         };
     }
 }

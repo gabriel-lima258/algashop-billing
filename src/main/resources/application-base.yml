@@ -1,6 +1,18 @@
 spring:
   application:
     name: billing
+  # O spring-cloud-commons entra de carona no starter de circuit breaker e registra
+  # um health indicator de service discovery. Nao ha Eureka/Consul aqui - a chamada
+  # ao Fastpay usa URL fixa - entao ele fica eternamente "Discovery Client not
+  # initialized" / UNKNOWN. E como o status.order abaixo poe UNKNOWN acima de UP, o
+  # status agregado do /actuator/health nunca sai de UNKNOWN: o endpoint para de
+  # distinguir servico saudavel de servico com problema. Desligar o indicador
+  # devolve o sinal.
+  cloud:
+    discovery:
+      client:
+        health-indicator:
+          enabled: false
   jpa:
     hibernate:
       ddl-auto: none
@@ -36,3 +48,37 @@ algashop:
       open-timeout: 5s
       # tempo sem nenhuma falha que zera o estado do circuito
       reset-timeout: 30s
+
+# O /actuator/health responde duas perguntas diferentes, e o group separa as duas:
+#
+#   /actuator/health            "esta tudo bem?"  - inclui TODOS os indicadores
+#   /actuator/health/readiness  "posso receber requisicao?" - so o que e essencial
+#
+# So o banco entra no readiness. O circuito do Fastpay NAO entra, e isso e deliberado:
+# gateway fora do ar significa que a cobranca falha, nao que esta instancia deva sair de
+# rotacao - ela continua servindo consulta de fatura e de cartao normalmente. Tirar o
+# servico do balanceador porque um terceiro caiu transformaria uma falha parcial em
+# indisponibilidade total, que e exatamente o que a resiliencia da Fase 16 evita.
+#
+# NOTA: aqui nao ha bloco management.health.redis. O ordering tem, porque la o Redis
+# existe e o indicador nativo precisa ser desligado para o customizado tomar o lugar.
+# Este servico nao usa Redis - nao ha starter-data-redis no classpath - entao a chave
+# seria inocua e enganosa: quem lesse concluiria que existe um cache aqui.
+management:
+  info:
+    env.enabled: true
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+      group:
+        readiness:
+          include: db,readinessState
+      status:
+        order: "DOWN, OUT_OF_SERVICE, UNKNOWN, DEGRADED, UP"
+
+info:
+  app.name: Algashop Billing API

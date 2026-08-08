@@ -21,6 +21,9 @@ import java.net.SocketTimeoutException;
 import java.util.Optional;
 import java.util.function.Supplier;
 
+import static com.algaworks.algashop.billing.infrastructure.resilience.SpringCircuitBreakerConfig.fastpayReadCB;
+import static com.algaworks.algashop.billing.infrastructure.resilience.SpringCircuitBreakerConfig.fastpayWriteCB;
+
 // Espelha o ResilientFastpayPaymentAPIClient: mesmo Fastpay, mesma divisao por idempotencia.
 //
 //   create / delete -> writeCircuitBreaker (SEM retry)
@@ -44,8 +47,8 @@ public class ResilientFastpayCreditCardAPIClient {
     public ResilientFastpayCreditCardAPIClient(FastpayCreditCardAPIClient fastpayCreditCardAPIClient,
                                                CircuitBreakerFactory<FrameworkRetryConfig, FrameworkRetryConfigBuilder> circuitBreakerFactory) {
         this.fastpayCreditCardAPIClient = fastpayCreditCardAPIClient;
-        this.readCircuitBreaker = (FrameworkRetryCircuitBreaker) circuitBreakerFactory.create("fastpayCB");
-        this.writeCircuitBreaker = (FrameworkRetryCircuitBreaker) circuitBreakerFactory.create("fastpayWriteCB");
+        this.readCircuitBreaker = (FrameworkRetryCircuitBreaker) circuitBreakerFactory.create(fastpayReadCB);
+        this.writeCircuitBreaker = (FrameworkRetryCircuitBreaker) circuitBreakerFactory.create(fastpayWriteCB);
     }
 
     @ConcurrencyLimit(10) // bulkhead: no maximo 10 threads aqui dentro; as demais BLOQUEIAM

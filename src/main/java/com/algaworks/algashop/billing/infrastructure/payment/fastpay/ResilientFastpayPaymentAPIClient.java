@@ -20,6 +20,9 @@ import org.springframework.web.client.RestClientException;
 import java.net.SocketTimeoutException;
 import java.util.function.Supplier;
 
+import static com.algaworks.algashop.billing.infrastructure.resilience.SpringCircuitBreakerConfig.fastpayReadCB;
+import static com.algaworks.algashop.billing.infrastructure.resilience.SpringCircuitBreakerConfig.fastpayWriteCB;
+
 // Unica camada entre o dominio e o HTTP do Fastpay: resiliencia + traducao de erro.
 // NAO ha cache aqui, nem deve haver - e dado financeiro.
 //
@@ -44,8 +47,8 @@ public class ResilientFastpayPaymentAPIClient {
     public ResilientFastpayPaymentAPIClient(FastpayPaymentAPIClient fastpayPaymentAPIClient,
                                             CircuitBreakerFactory<FrameworkRetryConfig, FrameworkRetryConfigBuilder> circuitBreakerFactory) {
         this.fastpayPaymentAPIClient = fastpayPaymentAPIClient;
-        this.readCircuitBreaker = (FrameworkRetryCircuitBreaker) circuitBreakerFactory.create("fastpayCB");
-        this.writeCircuitBreaker = (FrameworkRetryCircuitBreaker) circuitBreakerFactory.create("fastpayWriteCB");
+        this.readCircuitBreaker = (FrameworkRetryCircuitBreaker) circuitBreakerFactory.create(fastpayReadCB);
+        this.writeCircuitBreaker = (FrameworkRetryCircuitBreaker) circuitBreakerFactory.create(fastpayWriteCB);
     }
 
     @ConcurrencyLimit(10) // bulkhead: no maximo 10 threads aqui dentro; as demais BLOQUEIAM
