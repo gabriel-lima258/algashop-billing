@@ -13,6 +13,11 @@ spring:
     user: postgres
     password: postgres
     url: jdbc:postgresql://localhost:5433/billing
+  security: # apontamos o resource para authorization server para ter validação e busca de chave públicas
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://algashop-authorization-server:9000 # url de authorization server
 
 algashop:
   integrations:

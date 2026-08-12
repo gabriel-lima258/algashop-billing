@@ -253,6 +253,31 @@ O grupo `readiness` inclui **apenas o banco** — o circuito do FastPay fora do 
 
 Detalhes em [Health check e degradação](https://github.com/gabriel-lima258/algashop-docs/blob/main/04-infraestrutura/health-checks.md).
 
+
+### Segurança — escopos exigidos
+
+Este serviço é um **resource server**: toda rota exige `Authorization: Bearer <jwt>`, validado contra o issuer `http://algashop-authorization-server:9000`. Só `/actuator/health/**` é público.
+
+| Rota | Escopo |
+|---|---|
+| `GET /api/v1/orders/{orderId}/invoice` | `invoices:read` |
+| `POST /api/v1/orders/{orderId}/invoice` | `invoices:write` |
+| `GET` dos cartões do cliente | `credit-cards:read` |
+| `POST`/`DELETE` de cartão | `credit-cards:write` |
+
+**`/api/v1/webhooks/**` é público por necessidade** — o FastPay chama de fora e não carrega token. É a única rota deliberadamente aberta do sistema, e há um teste que **fixa** essa abertura para ninguém "consertá-la" e quebrar a confirmação de pagamento.
+
+> ⚠️ O mesmo webhook muda estado de fatura e **não verifica origem nenhuma**. Público é necessário; sem verificação não deveria ser. Registrado como pendência.
+
+```bash
+TOKEN=$(curl -s -u algashop-test:testing123 -d grant_type=client_credentials \
+  http://localhost:9000/oauth2/token | jq -r .access_token)
+
+curl -s -H "Authorization: Bearer $TOKEN" localhost:8082/api/v1/...
+```
+
+Sem token → **401**. Com token e sem o escopo → **403**. Detalhes em [Resource servers e escopos](https://github.com/gabriel-lima258/algashop-docs/blob/main/05-seguranca/resource-server-e-escopos.md).
+
 ---
 
 ## Documentação
@@ -263,6 +288,7 @@ Caderno de estudos do projeto: [`algashop-docs`](https://github.com/gabriel-lima
 - [Tratamento de erros](https://github.com/gabriel-lima258/algashop-docs/blob/main/03-testes-integracao/tratamento-erros-api.md) — `ProblemDetail`, e por que 502/504 existem separados
 - [Resiliência](https://github.com/gabriel-lima258/algashop-docs/blob/main/01-arquitetura-design/resiliencia.md) — os cinco padrões, e por que idempotência decide o que pode ser retentado
 - [Health check e degradação](https://github.com/gabriel-lima258/algashop-docs/blob/main/04-infraestrutura/health-checks.md) — liveness × readiness e o status DEGRADED
+- [Resource servers e escopos](https://github.com/gabriel-lima258/algashop-docs/blob/main/05-seguranca/resource-server-e-escopos.md) — escopo por rota, 401 × 403 e a matriz de testes
 - [Resiliência na prática](https://github.com/gabriel-lima258/algashop-docs/blob/main/04-infraestrutura/resiliencia-config.md) — parâmetros, biblioteca e como testar
 - [Contract tests e stubs](https://github.com/gabriel-lima258/algashop-docs/blob/main/03-testes-integracao/stubs-contract-tests.md) — WireMock e testes sem o outro serviço de pé
 - [Flyway](https://github.com/gabriel-lima258/algashop-docs/blob/main/02-persistencia/flyway.md) — versionar schema como código

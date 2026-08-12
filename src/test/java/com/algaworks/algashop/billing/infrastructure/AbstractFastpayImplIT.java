@@ -13,6 +13,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClient;
 
@@ -26,6 +28,9 @@ import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.options
 @Transactional
 @Import({FastpayCreditCardTokenizationAPIClientConfig.class, TestContainerPostgresSQLConfig.class})
 public abstract class AbstractFastpayImplIT {
+
+    @MockitoBean
+    private JwtDecoder jwtDecoder;
 
     @Autowired
     protected FastpayCreditCardTokenizationAPIClient tokenizationAPIClient;

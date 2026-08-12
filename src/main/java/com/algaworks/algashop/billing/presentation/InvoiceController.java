@@ -12,6 +12,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
 
+import static com.algaworks.algashop.billing.infrastructure.security.SecurityAnnotations.*;
+
 @Slf4j
 @RestController
 @RequestMapping("/api/v1/orders/{orderId}/invoice")
@@ -23,6 +25,7 @@ public class InvoiceController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @CanWriteInvoices
     public InvoiceOutput register(@PathVariable String orderId, @RequestBody @Valid GenerateInvoiceInput input) {
         input.setOrderId(orderId);
         UUID invoiceId = invoiceManagementApplicationService.generate(input);
@@ -39,6 +42,7 @@ public class InvoiceController {
     }
 
     @GetMapping
+    @CanReadInvoices
     public InvoiceOutput findByOrder(@PathVariable String orderId) {
         return invoiceQueryService.findByOrderId(orderId);
     }

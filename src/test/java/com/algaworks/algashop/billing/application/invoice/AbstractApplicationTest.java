@@ -4,6 +4,8 @@ import com.algaworks.algashop.billing.presentation.util.TestContainerPostgresSQL
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
@@ -11,6 +13,9 @@ import org.springframework.transaction.annotation.Transactional;
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import(TestContainerPostgresSQLConfig.class)
 public abstract class AbstractApplicationTest {
+
+    @MockitoBean
+    private JwtDecoder jwtDecoder;
 
     // inicia o postgres automaticamnete no docker e depois morre ao final do teste
 //    @Container
