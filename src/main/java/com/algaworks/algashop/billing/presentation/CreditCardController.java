@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.UUID;
 
-import static com.algaworks.algashop.billing.infrastructure.security.SecurityAnnotations.*;
+import static com.algaworks.algashop.billing.infrastructure.security.check.SecurityAnnotations.*;
 
 @RestController
 @RequestMapping("/api/v1/customers/{customerId}/credit-cards")

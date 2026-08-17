@@ -151,7 +151,11 @@ class InvoiceManagementApplicationServiceIT extends AbstractApplicationTest {
         // auditoria
         assertThat(invoice.getVersion()).isEqualTo(0L);
         assertThat(invoice.getCreatedAt()).isNotNull();
-        assertThat(invoice.getCreatedByUserId()).isNotNull();
+        // O autor vem do "sub" do token. Este IT roda SEM autenticação, então o
+        // AuditorAware devolve Optional.empty() e a coluna fica nula - de propósito.
+        // Antes da Fase 25 o provider devolvia UUID.randomUUID(), que era sempre não-nulo
+        // e nunca identificou ninguém; a asserção antiga passava por acidente.
+        assertThat(invoice.getCreatedByUserId()).isNull();
 
         // Verifica que o InvoicingService.issue() foi realmente chamado (usando o spy)
         // Isso garante que a lógica de negócio de emissão foi executada
@@ -215,7 +219,8 @@ class InvoiceManagementApplicationServiceIT extends AbstractApplicationTest {
         // auditoria
         assertThat(invoice.getVersion()).isEqualTo(0L);
         assertThat(invoice.getCreatedAt()).isNotNull();
-        assertThat(invoice.getCreatedByUserId()).isNotNull();
+        // sem autenticação no IT, o autor é nulo (ver comentário no teste anterior)
+        assertThat(invoice.getCreatedByUserId()).isNull();
 
         Mockito.verify(invoicingService).issue(any(), any(), any(), any());
     }

@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
 
-import static com.algaworks.algashop.billing.infrastructure.security.SecurityAnnotations.*;
+import static com.algaworks.algashop.billing.infrastructure.security.check.SecurityAnnotations.*;
 
 @Slf4j
 @RestController

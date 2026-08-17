@@ -1,4 +1,4 @@
-package com.algaworks.algashop.billing.infrastructure.security;
+package com.algaworks.algashop.billing.infrastructure.security.check;
 
 
 import org.springframework.security.access.prepost.PreAuthorize;
