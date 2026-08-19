@@ -75,11 +75,6 @@ public class OAuth2SecurityCheckApplicationServiceImpl implements SecurityCheckA
         return audience != null && audience.contains(jwt.getSubject());
     }
 
-    @Override
-    public boolean canAccessOwnProfile() {
-        return this.isAuthenticated() && !isMachineAuthenticated();
-    }
-
     private Jwt getJwt() {
         Authentication authentication = getAuthentication();
         if (authentication.getPrincipal() instanceof Jwt jwt) {
