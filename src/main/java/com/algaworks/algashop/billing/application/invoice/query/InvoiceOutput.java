@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.Set;
 import java.util.UUID;
 
 @Data
@@ -22,7 +23,9 @@ public class InvoiceOutput {
     private OffsetDateTime canceledAt;
     private OffsetDateTime expiresAt;
     private BigDecimal totalAmount;
+    private String cancelReason;
     private InvoiceStatus status;
     private PayerData payer;
     private PaymentSettingsOutput paymentSettings;
+    private Set<LineItemOutput> items;
 }

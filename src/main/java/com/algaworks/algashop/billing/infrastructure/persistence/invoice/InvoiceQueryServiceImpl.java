@@ -10,6 +10,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.UUID;
+
 @Service
 @Transactional(readOnly = true)
 @RequiredArgsConstructor
@@ -22,6 +24,13 @@ public class InvoiceQueryServiceImpl implements InvoiceQueryService {
     public InvoiceOutput findByOrderId(String orderId) {
         Invoice invoice = invoiceRepository.findByOrderId(orderId).orElseThrow(InvoiceNotFoundException::new);
         // mapeamos o data de output para domain
+        return mapper.convert(invoice, InvoiceOutput.class);
+    }
+
+    @Override
+    public InvoiceOutput findByOrderIdAndCustomerId(String orderId, UUID customerId) {
+        Invoice invoice = invoiceRepository.findByOrderIdAndCustomerId(orderId, customerId)
+                .orElseThrow(InvoiceNotFoundException::new);
         return mapper.convert(invoice, InvoiceOutput.class);
     }
 }

@@ -1,6 +1,8 @@
 package com.algaworks.algashop.billing.infrastructure.util.mapper;
 
+import com.algaworks.algashop.billing.application.invoice.query.PaymentSettingsOutput;
 import com.algaworks.algashop.billing.application.util.Mapper;
+import com.algaworks.algashop.billing.domain.model.invoice.PaymentSettings;
 import org.modelmapper.ModelMapper;
 import org.modelmapper.convention.MatchingStrategies;
 import org.modelmapper.convention.NamingConventions;
@@ -14,6 +16,12 @@ public class ModelMapperConfig {
     public Mapper mapper() {
         ModelMapper modelMapper = new ModelMapper();
         configuration(modelMapper);
+
+        // unica excecao ao STRICT: o contrato (billing.yml) chama o campo de "method",
+        // mas o agregado chama de "paymentMethod" - sem este mapping o campo sai null
+        modelMapper.typeMap(PaymentSettings.class, PaymentSettingsOutput.class)
+                .addMapping(PaymentSettings::getPaymentMethod, PaymentSettingsOutput::setMethod);
+
         return modelMapper::map;
     }
 

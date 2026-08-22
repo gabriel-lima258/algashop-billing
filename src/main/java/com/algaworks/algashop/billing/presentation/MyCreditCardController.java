@@ -4,6 +4,7 @@ import com.algaworks.algashop.billing.application.creditcard.management.CreditCa
 import com.algaworks.algashop.billing.application.creditcard.management.TokenizedCreditCardInput;
 import com.algaworks.algashop.billing.application.creditcard.query.CreditCardOutput;
 import com.algaworks.algashop.billing.application.creditcard.query.CreditCardQueryService;
+import com.algaworks.algashop.billing.application.security.SecurityCheckApplicationService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -15,38 +16,44 @@ import java.util.UUID;
 import static com.algaworks.algashop.billing.infrastructure.security.check.SecurityAnnotations.*;
 
 @RestController
-@RequestMapping("/api/v1/customers/{customerId}/credit-cards")
+@RequestMapping("/api/v1/customers/me/credit-cards")
 @RequiredArgsConstructor
-public class CreditCardController {
+public class MyCreditCardController {
 
     private final CreditCardManagementService cardManagementService;
     private final CreditCardQueryService creditCardQueryService;
 
+    private final SecurityCheckApplicationService securityCheck;
+
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @CanWriteCreditCards
-    public CreditCardOutput register(@PathVariable UUID customerId, @RequestBody @Valid TokenizedCreditCardInput input) {
-        input.setCustomerId(customerId);
+    @CanWriteMyCreditCards
+    public CreditCardOutput register(@RequestBody @Valid TokenizedCreditCardInput input) {
+        input.setCustomerId(getUser());
         UUID creditCardId = cardManagementService.register(input);
-        return creditCardQueryService.findOne(customerId, creditCardId);
+        return creditCardQueryService.findOne(getUser(), creditCardId);
     }
 
     @GetMapping
-    @CanReadCreditCards
-    public List<CreditCardOutput> findAllByCustomer(@PathVariable UUID customerId) {
-        return creditCardQueryService.findByCustomer(customerId);
+    @CanReadMyCreditCards
+    public List<CreditCardOutput> findAllByCustomer() {
+        return creditCardQueryService.findByCustomer(getUser());
     }
 
     @GetMapping("/{creditCardId}")
-    @CanReadCreditCards
-    public CreditCardOutput findOneCustomer(@PathVariable UUID customerId, @PathVariable UUID creditCardId) {
-        return creditCardQueryService.findOne(customerId, creditCardId);
+    @CanReadMyCreditCards
+    public CreditCardOutput findOneCustomer(@PathVariable UUID creditCardId) {
+        return creditCardQueryService.findOne(getUser(), creditCardId);
     }
 
     @DeleteMapping("/{creditCardId}")
-    @CanWriteCreditCards
+    @CanWriteMyCreditCards
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteCreditCard(@PathVariable UUID customerId, @PathVariable UUID creditCardId) {
-        cardManagementService.delete(customerId, creditCardId);
+    public void deleteCreditCard(@PathVariable UUID creditCardId) {
+        cardManagementService.delete(getUser(), creditCardId);
+    }
+
+    private UUID getUser() {
+        return securityCheck.getAuthenticatedUserId();
     }
 }

@@ -27,22 +27,30 @@ public class SecurityAnnotations {
 
     @Target({ElementType.METHOD, ElementType.TYPE})
     @Retention(RetentionPolicy.RUNTIME)
-    @PreAuthorize("hasAuthority('SCOPE_invoices:read')")
+    @PreAuthorize("hasAuthority('SCOPE_invoices:read') and not hasRole('CUSTOMER')")
     public @interface CanReadInvoices {}
 
+    // geracao de fatura e fluxo interno de sistema: so token de MAQUINA (client_credentials).
+    // O bean "securityCheck" e o OAuth2SecurityCheckApplicationServiceImpl.
     @Target({ElementType.METHOD, ElementType.TYPE})
     @Retention(RetentionPolicy.RUNTIME)
-    @PreAuthorize("hasAuthority('SCOPE_invoices:write')")
+    @PreAuthorize("hasAuthority('SCOPE_invoices:write') and @securityCheck.isMachineAuthenticated()")
     public @interface CanWriteInvoices {}
 
+    // PROFILE ME - BILLING
     @Target({ElementType.METHOD, ElementType.TYPE})
     @Retention(RetentionPolicy.RUNTIME)
-    @PreAuthorize("hasAuthority('SCOPE_credit-cards:read')")
-    public @interface CanReadCreditCards {}
+    @PreAuthorize("hasAuthority('SCOPE_invoices:read') and hasRole('CUSTOMER')")
+    public @interface CanReadMyInvoices {}
 
     @Target({ElementType.METHOD, ElementType.TYPE})
     @Retention(RetentionPolicy.RUNTIME)
-    @PreAuthorize("hasAuthority('SCOPE_credit-cards:write')")
-    public @interface CanWriteCreditCards {}
+    @PreAuthorize("hasAuthority('SCOPE_credit-cards:read') and hasRole('CUSTOMER')")
+    public @interface CanReadMyCreditCards {}
+
+    @Target({ElementType.METHOD, ElementType.TYPE})
+    @Retention(RetentionPolicy.RUNTIME)
+    @PreAuthorize("hasAuthority('SCOPE_credit-cards:write') and hasRole('CUSTOMER')")
+    public @interface CanWriteMyCreditCards {}
 
 }
