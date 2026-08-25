@@ -37,6 +37,12 @@ spring:
         jwt:
           issuer-uri: ${shared.params.auth-server-url} # url de authorization server
 
+logging:
+  level:
+    com.netflix.discovery.DiscoveryClient: OFF # desativa error eureka em dev
+    com.netflix.discovery: OFF
+    com.netflix.eureka: OFF
+
 algashop:
   integrations:
     payment:
@@ -45,3 +51,13 @@ algashop:
         hostname: ${billing.params.fastpay.hostname}
         private-token: ${billing.secrets.fastpay.private-token}
         webhook-url: ${billing.params.fastpay.webhook-url}
+
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: ${shared.params.service-registry-url}/eureka
+    healthcheck:
+      enabled: true # habilita o health em eureka para status de serviço dentro de eureka
+  instance:
+    instanceId: ${random.uuid} # cada instancia replicada ganha um id unico
+    prefer-ip-address: true # configura rede alcançável via docker
