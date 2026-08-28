@@ -1,0 +1,1 @@
+ALTER TABLE payment_settings DROP CONSTRAINT IF EXISTS fk_payment_settings_credit_card_id;
