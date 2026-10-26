@@ -70,6 +70,8 @@ dependencies {
     implementation 'io.awspring.cloud:spring-cloud-aws-starter-secrets-manager'
     implementation 'io.awspring.cloud:spring-cloud-aws-starter-parameter-store'
 
+    implementation 'org.springframework.boot:spring-boot-starter-kafka' // kafka
+
     runtimeOnly 'org.postgresql:postgresql'
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
@@ -83,6 +85,7 @@ dependencies {
     testImplementation 'org.springframework.boot:spring-boot-starter-flyway-test'
     testImplementation 'org.springframework.boot:spring-boot-testcontainers'
     testImplementation 'org.springframework.boot:spring-boot-starter-security-oauth2-resource-server-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-kafka-test'
 
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 

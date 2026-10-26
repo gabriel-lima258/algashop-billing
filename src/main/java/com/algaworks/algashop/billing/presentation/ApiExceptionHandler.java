@@ -1,6 +1,6 @@
 package com.algaworks.algashop.billing.presentation;
 
-import com.algaworks.algashop.billing.domain.model.BusinessException;
+import com.algaworks.algashop.billing.domain.model.DomainException;
 import com.algaworks.algashop.billing.domain.model.DomainEntityNotFoundException;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -57,8 +57,8 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
         return problemDetail;
     }
 
-    @ExceptionHandler(BusinessException.class)
-    public ProblemDetail handleBusinessException(BusinessException e) {
+    @ExceptionHandler(DomainException.class)
+    public ProblemDetail handleBusinessException(DomainException e) {
         ProblemDetail problemDetail = ProblemDetail.forStatus(HttpStatus.UNPROCESSABLE_ENTITY);
         problemDetail.setTitle("Unprocessable entity");
         problemDetail.setDetail(e.getMessage());

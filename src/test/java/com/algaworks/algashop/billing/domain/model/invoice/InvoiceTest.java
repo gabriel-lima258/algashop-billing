@@ -1,6 +1,6 @@
 package com.algaworks.algashop.billing.domain.model.invoice;
 
-import com.algaworks.algashop.billing.domain.model.BusinessException;
+import com.algaworks.algashop.billing.domain.model.DomainException;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 
@@ -73,7 +73,7 @@ class InvoiceTest {
     @Test
     void shouldThrowExceptionWhenChangingPaymentSettingsToPaidInvoice() {
         Invoice invoice = InvoiceTestDataBuilder.anInvoice().status(InvoiceStatus.PAID).build();
-        Assertions.assertThatExceptionOfType(BusinessException.class)
+        Assertions.assertThatExceptionOfType(DomainException.class)
                 .isThrownBy(() -> invoice.changePaymentSettings(PaymentMethod.CREDIT_CARD, UUID.randomUUID()));
     }
 
@@ -81,7 +81,7 @@ class InvoiceTest {
     void shouldThrowExceptionWhenTrySetInvoicePaidWhenIsCanceled() {
         Invoice invoice = InvoiceTestDataBuilder.anInvoice().status(InvoiceStatus.CANCELED).build();
 
-        Assertions.assertThatExceptionOfType(BusinessException.class)
+        Assertions.assertThatExceptionOfType(DomainException.class)
                 .isThrownBy(invoice::markAsPaid);
     }
 
@@ -99,7 +99,7 @@ class InvoiceTest {
         Invoice invoice = InvoiceTestDataBuilder.anInvoice().status(InvoiceStatus.PAID).build();
         String gatewayCode = "code-from-gateway";
 
-        Assertions.assertThatExceptionOfType(BusinessException.class)
+        Assertions.assertThatExceptionOfType(DomainException.class)
                 .isThrownBy(() -> {
                     invoice.assignPaymentGatewayCode(gatewayCode);
                 });
@@ -109,7 +109,7 @@ class InvoiceTest {
     void shouldThrowExceptionWhenTryToCancelAnInvoiceAlreadyCanceled() {
         Invoice invoice = InvoiceTestDataBuilder.anInvoice().status(InvoiceStatus.CANCELED).build();
 
-        Assertions.assertThatExceptionOfType(BusinessException.class)
+        Assertions.assertThatExceptionOfType(DomainException.class)
                 .isThrownBy(() -> {
                     invoice.cancel("Refund again");
                 });

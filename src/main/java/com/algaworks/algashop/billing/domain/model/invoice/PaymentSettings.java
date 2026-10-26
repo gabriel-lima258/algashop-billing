@@ -1,6 +1,6 @@
 package com.algaworks.algashop.billing.domain.model.invoice;
 
-import com.algaworks.algashop.billing.domain.model.BusinessException;
+import com.algaworks.algashop.billing.domain.model.DomainException;
 import com.algaworks.algashop.billing.domain.model.util.IdGenerator;
 import jakarta.persistence.*;
 import org.apache.commons.lang3.StringUtils;
@@ -61,7 +61,7 @@ public class PaymentSettings {
             throw new IllegalArgumentException();
         }
         if (this.getGatewayCode() != null) {
-            throw new BusinessException("Gateway code already assigned");
+            throw new DomainException("Gateway code already assigned");
         }
         setGatewayCode(gatewayCode);
     }

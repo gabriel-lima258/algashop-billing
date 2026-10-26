@@ -1,7 +1,7 @@
 package com.algaworks.algashop.billing.domain.model.invoice;
 
 import com.algaworks.algashop.billing.domain.model.AbstractAuditableAggregateRoot;
-import com.algaworks.algashop.billing.domain.model.BusinessException;
+import com.algaworks.algashop.billing.domain.model.DomainException;
 import com.algaworks.algashop.billing.domain.model.invoice.payment.PaymentStatus;
 import com.algaworks.algashop.billing.domain.model.util.IdGenerator;
 import jakarta.persistence.*;
@@ -120,7 +120,7 @@ public class Invoice extends AbstractAuditableAggregateRoot {
 
     public void markAsPaid() {
         if (!isUnpaid()) {
-            throw new BusinessException(String.format("Invoice %s with status %s cannot be marked as paid",
+            throw new DomainException(String.format("Invoice %s with status %s cannot be marked as paid",
                     this.getId(), this.getStatus().toString().toLowerCase()));
         }
         setPaidAt(OffsetDateTime.now());
@@ -133,7 +133,7 @@ public class Invoice extends AbstractAuditableAggregateRoot {
 
     public void cancel(String cancelReason) {
         if (isCanceled()) {
-            throw new BusinessException(String.format("Invoice %s is already canceled", this.getId()));
+            throw new DomainException(String.format("Invoice %s is already canceled", this.getId()));
         }
 
         setCancelReason(cancelReason);
@@ -147,7 +147,7 @@ public class Invoice extends AbstractAuditableAggregateRoot {
 
     public void assignPaymentGatewayCode(String code) {
         if (!isUnpaid()) {
-            throw new BusinessException(String.format("Invoice %s with status %s cannot be edited",
+            throw new DomainException(String.format("Invoice %s with status %s cannot be edited",
                     this.getId(), this.getStatus().toString().toLowerCase()));
         }
         this.getPaymentSettings().assignGatewayCode(code);
@@ -155,7 +155,7 @@ public class Invoice extends AbstractAuditableAggregateRoot {
 
     public void changePaymentSettings(PaymentMethod method, UUID creditCard) {
         if (!isUnpaid()) {
-            throw new BusinessException(String.format("Invoice %s with status %s cannot be edited",
+            throw new DomainException(String.format("Invoice %s with status %s cannot be edited",
                     this.getId(), this.getStatus().toString().toLowerCase()));
         }
         PaymentSettings paymentSetting = PaymentSettings.brandNew(method, creditCard);

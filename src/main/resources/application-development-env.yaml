@@ -36,6 +36,32 @@ spring:
       resourceserver:
         jwt:
           issuer-uri: ${shared.params.auth-server-url} # url de authorization server
+  kafka:
+    bootstrap-servers: algashop-kafka-1:9092,algashop-kafka-2:9093,algashop-kafka-3:9094
+    properties:
+      spring.json.type.mapping: # deserialização do type id do produtor
+    admin:
+      fail-fast: true
+      auto-create: true
+      modify-topic-configs: false
+    producer: # produtor para topico de dead letter topic
+      acks: all
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer # chave String
+      value-serializer: org.springframework.kafka.support.serializer.JacksonJsonSerializer # valor Json
+      properties:
+        enable.idempotence: true
+        request.timeout.ms: 5000 # tempo de UMA ida ao broker esperando a resposta
+        delivery.timeout.ms: 30000 # teto da operação inteira: envio + retries + backoff + confirmação
+        max.block.ms: 5000 # tempo que o próprio send() pode bloquear antes de existir future
+    consumer:
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+      properties:
+        spring.deserializer.value.delegate.class: org.springframework.kafka.support.serializer.JacksonJsonDeserializer
+        spring.json.trusted.packages: com.gtech.algashop.* # define os pacotes seguros ao kafka para evitar erros
+        spring.json.key.default.type: java.lang.String
+        spring.json.value.default.type: java.lang.String
+        spring.json.value.type.method: com.algaworks.algashop.billing.infrastructure.kafka.KafkaConsumerTypeIdIdentifier.readType
 
 logging:
   level:
@@ -51,6 +77,12 @@ algashop:
         hostname: ${billing.params.fastpay.hostname}
         private-token: ${billing.secrets.fastpay.private-token}
         webhook-url: ${billing.params.fastpay.webhook-url}
+  messaging:
+    kafka:
+      order-event-topic-name: ordering.order.events
+      invoice-event-topic-name: billing.invoice.events
+      order-events-consumer-group: billing.order-events
+      invoice-events-consumer-group: billing.invoice-events
 
 eureka:
   client:
