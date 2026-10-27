@@ -35,6 +35,7 @@ public class KafkaOrderIntegrationEventListener {
                 event.getClass().getSimpleName(), messageKey, offset);
     }
 
+    // recebemos o evento de order placed para gerar invoice
     @KafkaHandler
     public void handle(
             @Payload @Valid OrderPlacedIntegrationEvent event,

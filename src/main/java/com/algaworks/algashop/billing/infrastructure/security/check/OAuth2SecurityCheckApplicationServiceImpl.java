@@ -3,6 +3,7 @@ package com.algaworks.algashop.billing.infrastructure.security.check;
 import com.algaworks.algashop.billing.application.security.SecurityCheckApplicationService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -37,6 +38,11 @@ public class OAuth2SecurityCheckApplicationServiceImpl implements SecurityCheckA
         if (isMachineAuthenticated()) {
             throw new AccessDeniedException("Machina users does not have user ID");
         }
+
+        if (isAnonymous()) {
+            throw new AccessDeniedException("Anonymous user does not have user ID");
+        }
+
         Jwt jwt = getJwt();
 
         try {
@@ -73,6 +79,11 @@ public class OAuth2SecurityCheckApplicationServiceImpl implements SecurityCheckA
         // derruba toda escrita com NPE.
         List<String> audience = jwt.getAudience();
         return audience != null && audience.contains(jwt.getSubject());
+    }
+
+    @Override
+    public boolean isAnonymous() {
+        return getAuthentication() instanceof AnonymousAuthenticationToken;
     }
 
     private Jwt getJwt() {

@@ -36,7 +36,9 @@ public class SpringDataAuditingConfig {
     @Bean
     public AuditorAware<UUID> auditorProvider(SecurityCheckApplicationService securityCheck) {
         return () -> {
-            if (!securityCheck.isAuthenticated() || securityCheck.isMachineAuthenticated()) {
+            if (!securityCheck.isAuthenticated() ||
+                securityCheck.isMachineAuthenticated() || securityCheck.isAnonymous()
+            ) {
                 return Optional.empty();
             }
             return Optional.of(securityCheck.getAuthenticatedUserId());
