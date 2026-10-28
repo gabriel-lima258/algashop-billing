@@ -16,9 +16,12 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.ApplicationEvent;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBeans;
+import org.springframework.test.context.event.ApplicationEvents;
+import org.springframework.test.context.event.RecordApplicationEvents;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -43,6 +46,7 @@ import static org.mockito.ArgumentMatchers.any;
  * - @MockitoBean no PaymentGatewayService: substitui o bean real por um mock completo,
  *   porque não queremos chamar um gateway de pagamento externo em testes
  */
+@RecordApplicationEvents
 class InvoiceManagementApplicationServiceIT extends AbstractApplicationTest {
 
     // O serviço que estamos testando - injetado pelo Spring com todas as dependências reais
@@ -71,6 +75,9 @@ class InvoiceManagementApplicationServiceIT extends AbstractApplicationTest {
     // Em testes, controlamos o que ele retorna com Mockito.when()
     @MockitoBean
     private PaymentGatewayService paymentGatewayService;
+
+    @Autowired
+    private ApplicationEvents applicationEvents;
 
     /**
      * TESTE 1: Gerar fatura com pagamento via CARTÃO DE CRÉDITO.
@@ -161,8 +168,9 @@ class InvoiceManagementApplicationServiceIT extends AbstractApplicationTest {
         // Isso garante que a lógica de negócio de emissão foi executada
         Mockito.verify(invoicingService).issue(any(), any(), any(), any());
 
-        // verifica eventos
-        Mockito.verify(invoiceEventListener).listen(Mockito.any(InvoiceIssuedEvent.class));
+        Assertions.assertThat(applicationEvents.stream(InvoiceIssuedEvent.class).toList())
+                .singleElement()
+                .satisfies(event -> Assertions.assertThat(event.getInvoiceId()).isEqualTo(invoiceId));
     }
 
     /**
@@ -278,8 +286,12 @@ class InvoiceManagementApplicationServiceIT extends AbstractApplicationTest {
         // o pagamento à fatura (esse método aplica as regras de negócio: marca como PAID, etc.)
         Mockito.verify(invoicingService).assignPayment(Mockito.any(Invoice.class), Mockito.any(Payment.class));
 
-        // verifica eventos
-        Mockito.verify(invoiceEventListener).listen(Mockito.any(InvoicePaidEvent.class));
+        UUID invoiceId = paidInvoice.getId();
+
+        Assertions.assertThat(applicationEvents.stream(InvoiceIssuedEvent.class).toList())
+                .singleElement()
+                .satisfies(event -> Assertions.assertThat(event.getInvoiceId()).isEqualTo(invoiceId));
+
     }
 
     @Test
