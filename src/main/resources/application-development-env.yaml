@@ -42,6 +42,7 @@ spring:
       spring.json.type.mapping: # deserialização do type id do produtor
         Ordering.OrderPlacedIntegrationEvent:com.algaworks.algashop.billing.application.order.event.OrderPlacedIntegrationEvent,
         Billing.InvoiceIssuedIntegrationEvent:com.algaworks.algashop.billing.application.invoice.event.InvoiceIssuedIntegrationEvent,
+        Billing.InvoiceCanceledIntegrationEvent:com.algaworks.algashop.billing.application.invoice.event.InvoiceCanceledIntegrationEvent,
         Billing.InvoicePaidIntegrationEvent:com.algaworks.algashop.billing.application.invoice.event.InvoicePaidIntegrationEvent
     admin:
       fail-fast: true
