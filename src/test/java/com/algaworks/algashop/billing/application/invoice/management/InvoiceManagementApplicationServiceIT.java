@@ -334,8 +334,10 @@ class InvoiceManagementApplicationServiceIT extends AbstractApplicationTest {
         // o pagamento à fatura (esse método aplica as regras de negócio: marca como PAID, etc.)
         Mockito.verify(invoicingService).assignPayment(Mockito.any(Invoice.class), Mockito.any(Payment.class));
 
-        // verifica eventos
-        Mockito.verify(invoiceEventListener).listen(Mockito.any(InvoiceCanceledEvent.class));
+        // verifica eventos: o listener e @TransactionalEventListener (AFTER_COMMIT) e a
+        // transacao do teste sofre rollback, entao ele nunca roda aqui - o que se prova
+        // e que o agregado publicou o evento no save
+        assertThat(applicationEvents.stream(InvoiceCanceledEvent.class)).hasSize(1);
 
     }
 

@@ -49,8 +49,14 @@ public abstract class AbstractFastpayImplIT {
 
     protected static WireMockServer wireMockServer;
 
-    // wiremock dentro do java
+    // wiremock dentro do java, um so para a JVM inteira: as classes compartilham o contexto
+    // do Spring em cache, e o pool HTTP dele guarda conexoes abertas com a porta 8788.
+    // Parar e subir o servidor de novo entre classes deixava uma conexao morta no pool, e a
+    // primeira chamada da classe seguinte falhava com NoHttpResponseException
     public static void startMock() {
+        if (wireMockServer != null && wireMockServer.isRunning()) {
+            return;
+        }
         wireMockServer = new WireMockServer(options()
                 .port(8788)
                 .usingFilesUnderDirectory("src/test/resources/wiremock/fastpay")
@@ -65,8 +71,9 @@ public abstract class AbstractFastpayImplIT {
         wireMockServer.start();
     }
 
+    // nao para: o servidor vive ate o fim da JVM (ver startMock); o estado entre testes e
+    // limpo pelo reset de cenarios no @BeforeEach
     public static void stopMock() {
-        wireMockServer.stop();
     }
 
     @BeforeEach

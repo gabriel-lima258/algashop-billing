@@ -60,16 +60,6 @@ public class KafkaConfig {
         return createDeadLetterTopic(properties.getInvoiceEventTopicName());
     }
 
-    @Bean
-    public NewTopic orderEventsDlt(AlgaShopMessagingKafkaProperties properties) {
-        return createDeadLetterTopic(properties.getOrderEventTopicName());
-    }
-
-    @Bean
-    public NewTopic stockEventsDlt(AlgaShopMessagingKafkaProperties properties) {
-        return createDeadLetterTopic(properties.getStockEventTopicName());
-    }
-
     // ignora eventos em retry em business exception e costumiza os valores de retries
     @Bean
     public DefaultErrorHandler defaultErrorHandler(DeadLetterPublishingRecoverer recoverer) {

@@ -1,10 +1,7 @@
 package com.algaworks.algashop.billing.infrastructure.kafka;
 
 import com.algaworks.algashop.billing.application.invoice.event.InvoiceIssuedIntegrationEvent;
-import com.algaworks.algashop.billing.application.invoice.management.GenerateInvoiceInput;
-import com.algaworks.algashop.billing.application.invoice.management.GenerateInvoiceInputAssembler;
 import com.algaworks.algashop.billing.application.invoice.management.InvoiceManagementApplicationService;
-import com.algaworks.algashop.billing.application.order.event.OrderPlacedIntegrationEvent;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

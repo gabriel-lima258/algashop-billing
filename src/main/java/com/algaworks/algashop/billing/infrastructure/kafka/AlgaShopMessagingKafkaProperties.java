@@ -13,20 +13,9 @@ import org.springframework.validation.annotation.Validated;
 public class AlgaShopMessagingKafkaProperties {
 
     @NotBlank
-    private String orderEventTopicName;
-
-    @NotBlank
     private String invoiceEventTopicName;
-
-    @NotBlank
-    private String stockEventTopicName;
-
-    @NotBlank
-    private String orderEventsConsumerGroup;
 
     @NotBlank
     private String invoiceEventsConsumerGroup;
 
-    @NotBlank
-    private String stockEventsConsumerGroup;
 }
