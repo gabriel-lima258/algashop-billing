@@ -41,6 +41,11 @@ public class PaymentGatewayServiceFastpayImpl implements PaymentGatewayService {
         return convertToPayment(response);
     }
 
+    @Override
+    public void refund(String gatewayCode) {
+        fastpayPaymentAPIClient.refund(gatewayCode);
+    }
+
     private FastpayPaymentInput convertToInput(PaymentRequest request) {
         Payer payer = request.getPayer();
         Address address = payer.getAddress();

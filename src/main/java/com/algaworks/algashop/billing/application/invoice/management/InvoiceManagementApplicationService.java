@@ -9,6 +9,7 @@ import com.algaworks.algashop.billing.domain.model.invoice.payment.Payment;
 import com.algaworks.algashop.billing.domain.model.invoice.payment.PaymentGatewayService;
 import com.algaworks.algashop.billing.domain.model.invoice.payment.PaymentRequest;
 import com.algaworks.algashop.billing.domain.model.invoice.payment.PaymentStatus;
+import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.antlr.v4.runtime.misc.NotNull;
@@ -138,6 +139,15 @@ public class InvoiceManagementApplicationService {
         invoiceRepository.saveAndFlush(invoice);
     }
 
+    @Transactional
+    public void refundByOrderId(@NotBlank String orderId) {
+        Invoice invoice = invoiceRepository.findByOrderId(orderId).orElseThrow(InvoiceNotFoundException::new);
+
+        paymentGatewayService.refund(invoice.getPaymentSettings().getGatewayCode());
+
+        invoice.updatePaymentStatus(PaymentStatus.REFUNDED);
+    }
+
     /**
      * Converte os DTOs de entrada (LineItemInput) em objetos de domínio (LineItem).
      * Cada item recebe uma numeração sequencial (1, 2, 3...) para ordenação na fatura.
@@ -192,5 +202,4 @@ public class InvoiceManagementApplicationService {
             throw new CreditCardNotFoundException(String.format("Credit card %s not found", creditCardId));
         }
     }
-
 }

@@ -67,7 +67,7 @@ public class ResilientFastpayPaymentAPIClient {
     public void refund(String gatewayCode) {
         execute(readCircuitBreaker, "refund " + gatewayCode, () -> {
             doRefund(gatewayCode);
-            return null;
+            return Void.TYPE;
         });
     }
 
@@ -75,7 +75,7 @@ public class ResilientFastpayPaymentAPIClient {
     public void cancel(String gatewayCode) {
         execute(readCircuitBreaker, "cancel " + gatewayCode, () -> {
             doCancel(gatewayCode);
-            return null;
+            return Void.TYPE;
         });
     }
 

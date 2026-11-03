@@ -33,4 +33,8 @@ public class PaymentGatewayServiceFakeImpl implements PaymentGatewayService {
                 .gatewayCode(gatewayCode)
                 .build();
     }
+
+    @Override
+    public void refund(String gatewayCode) {
+    }
 }
