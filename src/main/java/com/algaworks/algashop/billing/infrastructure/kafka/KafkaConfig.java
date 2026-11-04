@@ -55,6 +55,16 @@ public class KafkaConfig {
                 .build();
     }
 
+    // o billing executa os comandos de fatura, entao e ele quem cria o topico deles
+    @Bean
+    public NewTopic invoiceCommandTopic(AlgaShopMessagingKafkaProperties properties) {
+        return TopicBuilder.name(properties.getInvoiceCommandsTopicName())
+                .partitions(TOPIC_PARTITIONS)
+                .replicas(TOPIC_REPLICAS)
+                .configs(Map.of("min.insync.replicas", "2"))
+                .build();
+    }
+
     @Bean
     public NewTopic invoiceEventsDlt(AlgaShopMessagingKafkaProperties properties) {
         return createDeadLetterTopic(properties.getInvoiceEventTopicName());
