@@ -1,7 +1,7 @@
 package com.algaworks.algashop.billing.application.invoice.event;
 
-import com.algaworks.algashop.billing.application.IntegrationEvent;
+import com.algaworks.algashop.billing.application.OutboundIntegrationEvent;
 
 public interface InvoiceIntegrationEventPublisher {
-    void send(IntegrationEvent event);
+    void send(OutboundIntegrationEvent event);
 }

@@ -1,7 +1,7 @@
 package com.algaworks.algashop.billing.infrastructure.kafka;
 
 import com.algaworks.algashop.billing.application.EventPublishingException;
-import com.algaworks.algashop.billing.application.IntegrationEvent;
+import com.algaworks.algashop.billing.application.OutboundIntegrationEvent;
 import com.algaworks.algashop.billing.application.invoice.event.InvoiceIntegrationEventPublisher;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Validator;
@@ -28,7 +28,7 @@ public class KafkaInvoiceIntegrationEventPublisher implements InvoiceIntegration
     private final Validator validator;
 
     @Override
-    public void send(IntegrationEvent event) {
+    public void send(OutboundIntegrationEvent event) {
         var violations = validator.validate(event);
 
         if (!violations.isEmpty()) {
