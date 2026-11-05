@@ -4,6 +4,7 @@ import com.algaworks.algashop.billing.application.invoice.command.IssueInvoiceIn
 import com.algaworks.algashop.billing.application.invoice.management.GenerateInvoiceInput;
 import com.algaworks.algashop.billing.application.invoice.management.GenerateInvoiceInputAssembler;
 import com.algaworks.algashop.billing.application.invoice.management.InvoiceManagementApplicationService;
+import com.algaworks.algashop.billing.infrastructure.persistence.reply.PendingReplies;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -13,8 +14,10 @@ import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.nio.charset.StandardCharsets;
+import java.util.UUID;
 
 // Executa os comandos de fatura enviados pelo orquestrador (ordering). O comando so e
 // aceito com kafka_correlationId e kafka_replyTopic: sem eles nao ha como responder, entao
@@ -32,6 +35,11 @@ public class KafkaInvoiceIntegrationCommandListener {
     private final InvoiceManagementApplicationService invoiceManagementApplicationService;
     private final GenerateInvoiceInputAssembler generateInvoiceInputAssembler;
 
+    // guarda o endereco de resposta ate o pagamento se resolver
+    private final PendingReplies pendingReplies;
+    // uma transacao para fatura + pendente: os @Transactional de dentro participam dela
+    private final TransactionTemplate transactionTemplate;
+
     @KafkaHandler
     public void handle(
             @Payload @Valid IssueInvoiceIntegrationCommand command,
@@ -43,12 +51,19 @@ public class KafkaInvoiceIntegrationCommandListener {
         logReceived(command, messageKey, partition, offset);
 
         // verifica a ausencia desses valores no header
-        requireHeader(correlationId, KafkaHeaders.CORRELATION_ID);
-        requireHeader(replyTopic, KafkaHeaders.REPLY_TOPIC);
+        String sagaCorrelationId = requireHeader(correlationId, KafkaHeaders.CORRELATION_ID);
+        String sagaReplyTopic = requireHeader(replyTopic, KafkaHeaders.REPLY_TOPIC);
 
         GenerateInvoiceInput input = generateInvoiceInputAssembler.toGenerateInvoiceInput(command);
 
-        invoiceManagementApplicationService.generate(input);
+        // a resposta depende de um pagamento que ainda nao aconteceu (cobranca via
+        // InvoiceIssued ou webhook), entao nao ha o que responder agora. Grava a fatura E o
+        // pendente (correlacao + topico de resposta) numa transacao so: ou existem os dois,
+        // ou nenhum - nunca uma fatura sem ter para onde responder
+        transactionTemplate.executeWithoutResult(status -> {
+            UUID invoiceId = invoiceManagementApplicationService.generate(input);
+            pendingReplies.register(invoiceId, command.getOrderId(), sagaCorrelationId, sagaReplyTopic);
+        });
     }
 
     // o topico e exclusivo de comandos de fatura: tipo desconhecido e erro de contrato e
