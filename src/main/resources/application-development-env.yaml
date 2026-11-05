@@ -42,7 +42,8 @@ spring:
       spring.json.type.mapping: # deserialização do type id do produtor
         Billing.InvoiceIssuedIntegrationEvent:com.algaworks.algashop.billing.application.invoice.event.InvoiceIssuedIntegrationEvent,
         Billing.InvoiceCanceledIntegrationEvent:com.algaworks.algashop.billing.application.invoice.event.InvoiceCanceledIntegrationEvent,
-        Billing.InvoicePaidIntegrationEvent:com.algaworks.algashop.billing.application.invoice.event.InvoicePaidIntegrationEvent
+        Billing.InvoicePaidIntegrationEvent:com.algaworks.algashop.billing.application.invoice.event.InvoicePaidIntegrationEvent,
+        Billing.IssueInvoiceIntegrationCommand:com.algaworks.algashop.billing.application.invoice.command.IssueInvoiceIntegrationCommand
     admin:
       fail-fast: true
       auto-create: true
@@ -83,8 +84,8 @@ algashop:
   messaging:
     kafka:
       invoice-event-topic-name: billing.invoice.events
-      invoice-commands-topic-name: billing.invoice.commands
       invoice-events-consumer-group: billing.invoice-events
+      invoice-commands-topic-name: billing.invoice.commands
       invoice-commands-consumer-group: billing.invoice-commands
 
 eureka:
