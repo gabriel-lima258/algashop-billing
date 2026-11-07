@@ -22,6 +22,8 @@ spring:
         Billing.InvoiceCanceledIntegrationEvent:com.algaworks.algashop.billing.application.invoice.event.InvoiceCanceledIntegrationEvent,
         Billing.InvoicePaidIntegrationEvent:com.algaworks.algashop.billing.application.invoice.event.InvoicePaidIntegrationEvent,
         Billing.IssueInvoiceIntegrationCommand:com.algaworks.algashop.billing.application.invoice.command.IssueInvoiceIntegrationCommand,
+        Billing.CancelInvoiceIntegrationCommand:com.algaworks.algashop.billing.application.invoice.command.CancelInvoiceIntegrationCommand,
+        Billing.CancelInvoiceIntegrationCommand:com.algaworks.algashop.billing.application.invoice.command.CancelInvoiceIntegrationCommand,
         Billing.InvoiceCanceledIntegrationReply:com.algaworks.algashop.billing.application.invoice.reply.InvoiceCanceledIntegrationReply,
         Billing.InvoicePaidIntegrationReply:com.algaworks.algashop.billing.application.invoice.reply.InvoicePaidIntegrationReply
     producer:
