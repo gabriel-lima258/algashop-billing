@@ -251,7 +251,7 @@ O grupo `readiness` inclui **apenas o banco** — o circuito do FastPay fora do 
 
 > ⚠️ `DEGRADED` devolve **HTTP 200**: só `DOWN` e `OUT_OF_SERVICE` viram 503 por padrão. Um probe que olhe o código de status não vê diferença.
 
-Detalhes em [Health check e degradação](https://github.com/gabriel-lima258/algashop-docs/blob/main/04-infraestrutura/health-checks.md).
+Detalhes em [Health check e degradação](https://github.com/gabriel-lima258/algashop-docs/blob/main/04-infraestrutura/07-health-checks.md).
 
 
 ### Segurança — escopos exigidos
@@ -276,7 +276,7 @@ TOKEN=$(curl -s -u algashop-test:testing123 -d grant_type=client_credentials \
 curl -s -H "Authorization: Bearer $TOKEN" localhost:8082/api/v1/...
 ```
 
-Sem token → **401**. Com token e sem o escopo → **403**. Detalhes em [Resource servers e escopos](https://github.com/gabriel-lima258/algashop-docs/blob/main/05-seguranca/resource-server-e-escopos.md).
+Sem token → **401**. Com token e sem o escopo → **403**. Detalhes em [Resource servers e escopos](https://github.com/gabriel-lima258/algashop-docs/blob/main/05-seguranca/03-resource-server-e-escopos.md).
 
 ---
 
@@ -284,14 +284,14 @@ Sem token → **401**. Com token e sem o escopo → **403**. Detalhes em [Resour
 
 Caderno de estudos do projeto: [`algashop-docs`](https://github.com/gabriel-lima258/algashop-docs). O que toca este serviço:
 
-- [Arquitetura](https://github.com/gabriel-lima258/algashop-docs/blob/main/00-visao-geral/arquitetura.md) — como os quatro serviços se conectam
-- [Tratamento de erros](https://github.com/gabriel-lima258/algashop-docs/blob/main/03-testes-integracao/tratamento-erros-api.md) — `ProblemDetail`, e por que 502/504 existem separados
-- [Resiliência](https://github.com/gabriel-lima258/algashop-docs/blob/main/01-arquitetura-design/resiliencia.md) — os cinco padrões, e por que idempotência decide o que pode ser retentado
-- [Health check e degradação](https://github.com/gabriel-lima258/algashop-docs/blob/main/04-infraestrutura/health-checks.md) — liveness × readiness e o status DEGRADED
-- [Resource servers e escopos](https://github.com/gabriel-lima258/algashop-docs/blob/main/05-seguranca/resource-server-e-escopos.md) — escopo por rota, 401 × 403 e a matriz de testes
-- [Resiliência na prática](https://github.com/gabriel-lima258/algashop-docs/blob/main/04-infraestrutura/resiliencia-config.md) — parâmetros, biblioteca e como testar
-- [Contract tests e stubs](https://github.com/gabriel-lima258/algashop-docs/blob/main/03-testes-integracao/stubs-contract-tests.md) — WireMock e testes sem o outro serviço de pé
-- [Flyway](https://github.com/gabriel-lima258/algashop-docs/blob/main/02-persistencia/flyway.md) — versionar schema como código
-- [Ambiente local](https://github.com/gabriel-lima258/algashop-docs/blob/main/04-infraestrutura/ambiente-local.md) — portas, bancos e problemas comuns
+- [Arquitetura](https://github.com/gabriel-lima258/algashop-docs/blob/main/00-visao-geral/01-arquitetura.md) — como os quatro serviços se conectam
+- [Tratamento de erros](https://github.com/gabriel-lima258/algashop-docs/blob/main/03-testes-integracao/02-tratamento-erros-api.md) — `ProblemDetail`, e por que 502/504 existem separados
+- [Resiliência](https://github.com/gabriel-lima258/algashop-docs/blob/main/01-arquitetura-design/06-resiliencia.md) — os cinco padrões, e por que idempotência decide o que pode ser retentado
+- [Health check e degradação](https://github.com/gabriel-lima258/algashop-docs/blob/main/04-infraestrutura/07-health-checks.md) — liveness × readiness e o status DEGRADED
+- [Resource servers e escopos](https://github.com/gabriel-lima258/algashop-docs/blob/main/05-seguranca/03-resource-server-e-escopos.md) — escopo por rota, 401 × 403 e a matriz de testes
+- [Resiliência na prática](https://github.com/gabriel-lima258/algashop-docs/blob/main/04-infraestrutura/06-resiliencia-config.md) — parâmetros, biblioteca e como testar
+- [Contract tests e stubs](https://github.com/gabriel-lima258/algashop-docs/blob/main/03-testes-integracao/01-stubs-contract-tests.md) — WireMock e testes sem o outro serviço de pé
+- [Flyway](https://github.com/gabriel-lima258/algashop-docs/blob/main/02-persistencia/01-flyway.md) — versionar schema como código
+- [Ambiente local](https://github.com/gabriel-lima258/algashop-docs/blob/main/04-infraestrutura/01-ambiente-local.md) — portas, bancos e problemas comuns
 
 O cancelamento automático de faturas vencidas não acontece aqui: é do [`algashop-billing-scheduler`](https://github.com/gabriel-lima258/algashop-billing-scheduler).
