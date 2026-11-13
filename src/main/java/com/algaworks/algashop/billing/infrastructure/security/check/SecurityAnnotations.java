@@ -53,4 +53,12 @@ public class SecurityAnnotations {
     @PreAuthorize("hasAuthority('SCOPE_credit-cards:write') and hasRole('CUSTOMER')")
     public @interface CanWriteMyCreditCards {}
 
+    // METRICS - mesma regra do ordering: escopo obrigatorio e cliente final bloqueado. Token de
+    // maquina (client_credentials, ex.: algashop-test) nao tem papel e passa; o OPERATOR do
+    // painel fica de fora porque o seed do authorization-server so da metrics:read ao MANAGER.
+    @Target({ElementType.METHOD, ElementType.TYPE})
+    @Retention(RetentionPolicy.RUNTIME)
+    @PreAuthorize("hasAuthority('SCOPE_metrics:read') and not hasRole('CUSTOMER')")
+    public @interface CanReadMetrics {}
+
 }

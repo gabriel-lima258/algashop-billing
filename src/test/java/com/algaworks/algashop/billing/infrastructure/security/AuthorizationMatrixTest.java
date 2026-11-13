@@ -4,10 +4,12 @@ import com.algaworks.algashop.billing.application.creditcard.management.CreditCa
 import com.algaworks.algashop.billing.application.creditcard.query.CreditCardQueryService;
 import com.algaworks.algashop.billing.application.invoice.management.InvoiceManagementApplicationService;
 import com.algaworks.algashop.billing.application.invoice.query.InvoiceQueryService;
+import com.algaworks.algashop.billing.application.metrics.MetricsQueryService;
 import com.algaworks.algashop.billing.infrastructure.payment.fastpay.webhook.FastpayWebhookController;
 import com.algaworks.algashop.billing.infrastructure.payment.fastpay.webhook.FastpayWebhookHandler;
 import com.algaworks.algashop.billing.infrastructure.security.check.OAuth2SecurityCheckApplicationServiceImpl;
 import com.algaworks.algashop.billing.presentation.InvoiceController;
+import com.algaworks.algashop.billing.presentation.MetricsController;
 import com.algaworks.algashop.billing.presentation.MyCreditCardController;
 import com.algaworks.algashop.billing.presentation.MyInvoiceController;
 import org.junit.jupiter.api.Test;
@@ -59,7 +61,8 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
         InvoiceController.class,
         MyInvoiceController.class,
         MyCreditCardController.class,
-        FastpayWebhookController.class
+        FastpayWebhookController.class,
+        MetricsController.class
 })
 @Import({BillingSecurityConfig.class, OAuth2SecurityCheckApplicationServiceImpl.class})
 class AuthorizationMatrixTest {
@@ -72,6 +75,7 @@ class AuthorizationMatrixTest {
     private static final String AUDIENCE = "algashop-web";
 
     private static final String ORDER_ID = "0R8PSRVRB4WQH";
+    private static final String METRICS_PATH = "/api/v1/metrics/payments-overview";
     private static final String CUSTOMER_ID = "41cdc65c-6158-48b0-a8e6-34c0ff8fd74e";
     private static final String CREDIT_CARD_ID = "7f8e9d0c-0000-0000-0000-000000000000";
 
@@ -101,6 +105,7 @@ class AuthorizationMatrixTest {
     @MockitoBean private CreditCardManagementService creditCardManagementService;
     @MockitoBean private CreditCardQueryService creditCardQueryService;
     @MockitoBean private FastpayWebhookHandler fastpayWebhookHandler;
+    @MockitoBean private MetricsQueryService metricsQueryService;
 
     // -------------------------------------------------------------------------
     // Tokens sinteticos
@@ -132,7 +137,8 @@ class AuthorizationMatrixTest {
     static Stream<Arguments> allRoutes() {
         return Stream.concat(myRoutes(), Stream.of(
                 Arguments.of(HttpMethod.POST, "/api/v1/orders/" + ORDER_ID + "/invoice", "SCOPE_invoices:write", JSON, INVOICE_BODY),
-                Arguments.of(HttpMethod.GET, "/api/v1/orders/" + ORDER_ID + "/invoice", "SCOPE_invoices:read", null, null)
+                Arguments.of(HttpMethod.GET, "/api/v1/orders/" + ORDER_ID + "/invoice", "SCOPE_invoices:read", null, null),
+                Arguments.of(HttpMethod.GET, METRICS_PATH, "SCOPE_metrics:read", null, null)
         ));
     }
 
@@ -240,6 +246,36 @@ class AuthorizationMatrixTest {
                         .with(machineToken("SCOPE_invoices:write")))
                 .andExpect(result -> assertThat(result.getResponse().getStatus())
                         .as("maquina com invoices:write nao deveria parar na seguranca")
+                        .isNotIn(401, 403));
+    }
+
+    // -------------------------------------------------------------------------
+    // Metricas: escopo + NAO ser CUSTOMER (token de maquina, sem papel, passa)
+    // -------------------------------------------------------------------------
+
+    @Test
+    void shouldRejectCustomerOnMetrics() throws Exception {
+        mockMvc.perform(MockMvcRequestBuilders.get(METRICS_PATH)
+                        .with(userToken("SCOPE_metrics:read", "ROLE_CUSTOMER")))
+                .andExpect(result -> assertThat(result.getResponse().getStatus())
+                        .as("CUSTOMER nas metricas deveria ser 403, mesmo com o escopo").isEqualTo(403));
+    }
+
+    @Test
+    void shouldAllowMachineTokenOnMetrics() throws Exception {
+        mockMvc.perform(MockMvcRequestBuilders.get(METRICS_PATH)
+                        .with(machineToken("SCOPE_metrics:read")))
+                .andExpect(result -> assertThat(result.getResponse().getStatus())
+                        .as("token de maquina com metrics:read nao deveria parar na seguranca")
+                        .isNotIn(401, 403));
+    }
+
+    @Test
+    void shouldAllowManagerOnMetrics() throws Exception {
+        mockMvc.perform(MockMvcRequestBuilders.get(METRICS_PATH)
+                        .with(userToken("SCOPE_metrics:read", "ROLE_MANAGER")))
+                .andExpect(result -> assertThat(result.getResponse().getStatus())
+                        .as("MANAGER com metrics:read nao deveria parar na seguranca")
                         .isNotIn(401, 403));
     }
 
